@@ -321,12 +321,18 @@ async function loadSignalSummary() {
 }
 
 // ── Write (transaction) ───────────────────────────────────────────────────────
+function buildWriteCalldata(method, args = []) {
+  // Writes van sin RLP wrap — eso es solo para gen_call reads
+  const cd = glEncodeCalldata(method, args);
+  return '0x' + Array.from(cd).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function glWrite(address, method, args = []) {
   if (!window.ethereum) throw new Error('No wallet detected. Install MetaMask or Rabby.');
   const account = window.__glAccount || sessionStorage.getItem('gl_account');
   if (!account) throw new Error('Connect your wallet first.');
 
-  const data = buildCalldata(method, args);
+  const data = buildWriteCalldata(method, args);
 
   const txHash = await window.ethereum.request({
     method: 'eth_sendTransaction',
