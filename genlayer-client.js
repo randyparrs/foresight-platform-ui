@@ -217,7 +217,8 @@ async function glCall(address, method, args = []) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
-  const decoded = glDecodeResult(json.result?.data);
+  const resultData = typeof json.result === 'string' ? json.result : json.result?.data;
+  const decoded = glDecodeResult(resultData);
   console.log(`[GL] ${method}(${args.join(',')}) →`, String(decoded).slice(0, 100));
   return decoded;
 }
