@@ -13,8 +13,8 @@ const MARKETS_ADDR = '0xC22D35c20D53730a86A7d456fc03B48556287903';
 const SIGNAL_ADDR  = '0xCb20df465C11BcB67e87b68A5B936453340c9d01';
 
 const studioTestnet = {
-  id: 1337,
-  name: 'GenLayer Studio Testnet',
+  id: 61999,
+  name: 'GenLayer Studio',
   nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
   rpcUrls: { default: { http: ['https://studio.genlayer.com/api'] } }
 };
