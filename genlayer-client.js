@@ -331,7 +331,7 @@ async function glWrite(address, method, args = []) {
   const account = window.__glAccount || sessionStorage.getItem('gl_account');
   if (!account) throw new Error('Connect your wallet first.');
 
-  const data = buildWriteCalldata(method, args);
+  const data = buildCalldata(method, args); // gen_call write espera el mismo RLP que las lecturas
 
   // Usamos gen_call con type:'write' — igual que el Studio (genera tx tipo "Call")
   const res = await fetch(RPC_URL, {
