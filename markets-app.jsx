@@ -219,19 +219,28 @@ const btnStyle = (color) => ({
 
 // ── Generate Market panel ─────────────────────────────────────────────────────
 const GeneratePanel = ({ onRefresh }) => {
-  const [url,  setUrl]  = useState('');
-  const [busy, setBusy] = useState(false);
-  const [tx,   setTx]   = useState(null);
+  const [url,   setUrl]   = useState('');
+  const [terms, setTerms] = useState('');
+  const [busy,  setBusy]  = useState(false);
+  const [tx,    setTx]    = useState(null);
+
+  const inputStyle = {
+    flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 3,
+    background: 'var(--surface-2)', color: 'var(--ink-0)',
+    border: '1px solid var(--line-2)',
+    fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
+  };
 
   const submit = async () => {
-    if (!url.trim()) return;
+    if (!url.trim() || !terms.trim()) return;
     setBusy(true);
     setTx(null);
     try {
-      const hash = await window.__glAPI.generateMarket(url.trim());
+      const hash = await window.__glAPI.generateMarket(url.trim(), terms.trim());
       setTx(hash);
       setUrl('');
-      setTimeout(() => onRefresh && onRefresh(), 4000);
+      setTerms('');
+      setTimeout(() => onRefresh && onRefresh(), 6000);
     } catch (e) {
       setTx('ERR:' + (e.message || String(e)));
     } finally {
@@ -252,32 +261,22 @@ const GeneratePanel = ({ onRefresh }) => {
       }}>
         // GENERATE_MARKET · AI AUTHORING FROM URL
       </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <input
-          type="url"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <input type="url" value={url} onChange={e => setUrl(e.target.value)}
           placeholder="https://news-source.com/article-url"
-          disabled={busy}
-          onKeyDown={e => e.key === 'Enter' && submit()}
-          style={{
-            flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 3,
-            background: 'var(--surface-2)', color: 'var(--ink-0)',
-            border: '1px solid var(--line-2)',
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
-          }}
-        />
-        <button
-          onClick={submit}
-          disabled={busy || !url.trim()}
+          disabled={busy} style={{ ...inputStyle, flex: 2 }} />
+        <input type="text" value={terms} onChange={e => setTerms(e.target.value)}
+          placeholder="search terms (ej: bitcoin price)"
+          disabled={busy} onKeyDown={e => e.key === 'Enter' && submit()}
+          style={{ ...inputStyle, flex: 1 }} />
+        <button onClick={submit} disabled={busy || !url.trim() || !terms.trim()}
           style={{
             padding: '8px 18px', borderRadius: 3,
             background: busy ? 'transparent' : 'var(--vio)',
             color: busy ? 'var(--vio)' : '#fff',
             border: '1px solid var(--vio)',
-            cursor: busy || !url.trim() ? 'not-allowed' : 'pointer',
+            cursor: busy || !url.trim() || !terms.trim() ? 'not-allowed' : 'pointer',
             fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700,
-            letterSpacing: '0.1em',
           }}
         >
           {busy ? 'SUBMITTING…' : '+ GENERATE'}

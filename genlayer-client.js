@@ -328,29 +328,40 @@ function buildWriteCalldata(method, args = []) {
 }
 
 async function glWrite(address, method, args = []) {
-  if (!window.ethereum) throw new Error('No wallet detected. Install MetaMask or Rabby.');
   const account = window.__glAccount || sessionStorage.getItem('gl_account');
   if (!account) throw new Error('Connect your wallet first.');
 
   const data = buildWriteCalldata(method, args);
 
-  const txHash = await window.ethereum.request({
-    method: 'eth_sendTransaction',
-    params: [{
-      from: account,
-      to:   address,
-      data,
-      gas: '0xF4240', // 1,000,000 gas — requerido por GenLayer para ejecutar GenVM
-    }],
+  // Enviamos directo al RPC — MetaMask borra el campo data al reenviar
+  const res = await fetch(RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method: 'eth_sendTransaction',
+      params: [{
+        from:  account,
+        to:    address,
+        data,
+        value: '0x0',
+      }],
+    }),
   });
 
-  console.log(`[GL] WRITE ${method}(${args.join(',')}) → ${txHash}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
+
+  const txHash = json.result;
+  console.log(`[GL] WRITE ${method}(${args.map(String).join(',')}) → ${txHash}`);
   return txHash;
 }
 
 // ── Market writes ─────────────────────────────────────────────────────────────
-function generateMarket(sourceUrl) {
-  return glWrite(MARKETS_ADDR, 'generate_market', [sourceUrl]);
+function generateMarket(sourceUrl, searchTerms) {
+  return glWrite(MARKETS_ADDR, 'generate_market', [sourceUrl, searchTerms || '']);
 }
 
 function placePrediction(marketId, side, amount) {
