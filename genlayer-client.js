@@ -327,35 +327,40 @@ function buildWriteCalldata(method, args = []) {
   return '0x' + Array.from(cd).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function glWrite(address, method, args = []) {
-  const account = window.__glAccount || sessionStorage.getItem('gl_account');
-  if (!account) throw new Error('Connect your wallet first.');
-
-  const data = buildCalldata(method, args); // gen_call write espera el mismo RLP que las lecturas
-
-  // Usamos gen_call con type:'write' — igual que el Studio (genera tx tipo "Call")
+async function _rpc(method, params) {
   const res = await fetch(RPC_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method: 'gen_call',
-      params: [{
-        type: 'write',
-        from: account,
-        to:   address,
-        data,
-        value: '0x0',
-      }],
-    }),
+    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
   });
-
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
+  return json.result;
+}
 
-  const txHash = json.result;
+async function glWrite(address, method, args = []) {
+  if (!window.ethereum) throw new Error('No wallet detected. Install MetaMask or Rabby.');
+  const account = window.__glAccount || sessionStorage.getItem('gl_account');
+  if (!account) throw new Error('Connect your wallet first.');
+
+  const data = buildWriteCalldata(method, args);
+
+  // Obtenemos el nonce directamente del RPC para que MetaMask no tenga que estimarlo
+  const nonce = await _rpc('eth_getTransactionCount', [account, 'latest']);
+
+  // Mandamos la tx completa — MetaMask solo firma, no modifica nada
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from:     account,
+      to:       address,
+      data,
+      nonce,
+      gas:      '0xF4240', // 1M gas
+      gasPrice: '0x0',     // testnet sin fees
+    }],
+  });
+
   console.log(`[GL] WRITE ${method}(${args.map(String).join(',')}) → ${txHash}`);
   return txHash;
 }
