@@ -339,23 +339,29 @@ const TICKER_ITEMS = [
   { cat: "POLITICS", q: "EU bans foundation models above 10^26 FLOPs?", yes: 19 },
 ];
 
-const Ticker = () => (
-  <div className="ticker">
-    <div className="ticker-label">LIVE MARKETS</div>
-    <div className="ticker-track">
-      <div className="ticker-list">
-        {[...TICKER_ITEMS, ...TICKER_ITEMS].map((t, i) => (
-          <span key={i} className="ticker-item">
-            <span className="cat">{t.cat}</span>
-            <span>{t.q}</span>
-            <span className={t.yes >= 50 ? "yes" : "no"}>{t.yes}% YES</span>
-            <span className="sep">·</span>
-          </span>
-        ))}
+const Ticker = ({ liveMarkets }) => {
+  const items = (liveMarkets && liveMarkets.length > 0)
+    ? liveMarkets.map(m => ({ cat: m.category, q: m.question, yes: m.yes_pct }))
+    : TICKER_ITEMS;
+  const doubled = [...items, ...items];
+  return (
+    <div className="ticker">
+      <div className="ticker-label">LIVE MARKETS</div>
+      <div className="ticker-track">
+        <div className="ticker-list">
+          {doubled.map((t, i) => (
+            <a key={i} href="Markets.html" className="ticker-item" style={{ textDecoration: "none", color: "inherit" }}>
+              <span className="cat">{t.cat}</span>
+              <span>{t.q}</span>
+              <span className={t.yes >= 50 ? "yes" : "no"}>{t.yes}% YES</span>
+              <span className="sep">·</span>
+            </a>
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const AgentCalloutMini = () => (
   <svg width="34" height="34" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -393,7 +399,7 @@ const AgentCallout = () => (
     <span className="agent-callout-cta">READ THE SIGNAL</span>
   </a>
 );
-const Hero = () => (
+const Hero = ({ totalMarkets, openMarkets, liveStats }) => (
   <div className="hero-wrap">
     <div>
       <div className="hero-eyebrow">
@@ -414,19 +420,19 @@ const Hero = () => (
         Authored and resolved by an optimistic AI consensus.
       </p>
       <div className="cta-row">
-        <button className="cta primary">
+        <a href="Markets.html" className="cta primary" style={{ textDecoration: "none" }}>
           Explore markets <span className="arrow">→</span>
-        </button>
-        <button className="cta">How it works</button>
+        </a>
+        <a href="HowItWorks.html" className="cta" style={{ textDecoration: "none" }}>How it works</a>
       </div>
       <div className="hero-stats">
         <div className="hero-stat">
-          <div className="num">1,284</div>
+          <div className="num">{liveStats ? totalMarkets : "1,284"}</div>
           <div className="lbl">MARKETS · ALL TIME</div>
         </div>
         <div className="hero-stat">
-          <div className="num">2.4<em>M</em></div>
-          <div className="lbl">VOLUME · S01</div>
+          <div className="num">{liveStats ? openMarkets : <span>2.4<em>M</em></span>}</div>
+          <div className="lbl">{liveStats ? "OPEN NOW" : "VOLUME · S01"}</div>
         </div>
         <div className="hero-stat">
           <div className="num">8,<span className="vio">421</span></div>
@@ -455,14 +461,20 @@ const { useState: useStateApp, useEffect: useEffectApp } = React;
 
 const App = () => {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [featured, setFeatured] = useStateApp(FEATURED);
-  const [news,     setNews]     = useStateApp(NEWS);
-  const [live,     setLive]     = useStateApp(false);
+  const [featured,     setFeatured]     = useStateApp(FEATURED);
+  const [news,         setNews]         = useStateApp(NEWS);
+  const [live,         setLive]         = useStateApp(false);
+  const [liveMarkets,  setLiveMarkets]  = useStateApp(null);
+  const [totalMarkets, setTotalMarkets] = useStateApp('—');
+  const [openMarkets,  setOpenMarkets]  = useStateApp('—');
 
   useEffectApp(() => {
     const applyMarkets = (data) => {
       if (!data || data.length === 0) return;
-      // Convertir al formato que usa FeaturedCard
+      setLiveMarkets(data);
+      setTotalMarkets(String(data.length));
+      const open = data.filter(m => m.status === 'OPEN').length;
+      setOpenMarkets(String(open));
       const cards = data.slice(0, 4).map(m => ({
         id:     m.id,
         cat:    m.category,
@@ -525,7 +537,7 @@ const App = () => {
         {Bg}
         <div className="layer layer-grain"></div>
 
-        <Hero />
+        <Hero totalMarkets={totalMarkets} openMarkets={openMarkets} liveStats={live} />
 
         <div className="section-hr"></div>
 
@@ -568,7 +580,7 @@ const App = () => {
           </div>
         </div>
 
-        <Ticker />
+        <Ticker liveMarkets={liveMarkets} />
       </div>
 
       <FooterStrip />

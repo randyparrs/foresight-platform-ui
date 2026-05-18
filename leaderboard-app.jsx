@@ -21,7 +21,35 @@ const ROWS = [
   { rank: 15, name: "edge_only",      addr: "0x0042…ff7b", roi: "+18%",  pts: "41,920",  wr: 45, best: "CRYPTO" },
 ];
 
-const App = () => (
+const { useState: useLBState, useEffect: useLBEffect } = React;
+
+const App = () => {
+  const [stats, setStats] = useLBState({ totalMarkets: '—', openMarkets: '—', totalArticles: '—' });
+
+  useLBEffect(() => {
+    const run = () => {
+      window.__glMarketSummaryPromise && window.__glMarketSummaryPromise.then(s => {
+        if (!s) return;
+        setStats(prev => ({
+          ...prev,
+          totalMarkets: s['Total Markets'] || '—',
+          openMarkets:  s['Open']          || '—',
+        }));
+      });
+      window.__glSignalSummaryPromise && window.__glSignalSummaryPromise.then(s => {
+        if (!s) return;
+        setStats(prev => ({
+          ...prev,
+          totalArticles: s['Total Articles'] || '—',
+        }));
+      });
+    };
+    if (window.__glAPI) run();
+    else document.addEventListener('glReady', run, { once: true });
+    return () => document.removeEventListener('glReady', run);
+  }, []);
+
+  return (
   <div className="page" style={{ paddingBottom: 32 }}>
     <Topbar active="leader" />
 
@@ -32,13 +60,25 @@ const App = () => (
             <div className="sec-eyebrow">// SEASON_01 · TOP PREDICTORS</div>
             <h1 className="sec-title">Leader<span className="accent">board</span>.</h1>
             <p className="sec-sub">
-              Live standings of the sharpest forecasters on Foresight.
-              Rankings update on every settled market.
+              Live standings de los mejores forecasters en Foresight.
+              Rankings actualizan en cada mercado resuelto.
             </p>
           </div>
-          <div className="sec-meta">
-            <span className="big">8,<em>421</em></span>
-            <span>PREDICTORS · 213 LIVE NOW</span>
+          <div className="sec-meta" style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 20 }}>
+              <div>
+                <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 22, fontWeight: 700, color: 'var(--yes)' }}>{stats.totalMarkets}</div>
+                <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>MARKETS TOTAL</div>
+              </div>
+              <div>
+                <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 22, fontWeight: 700, color: 'var(--acc)' }}>{stats.openMarkets}</div>
+                <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>OPEN NOW</div>
+              </div>
+              <div>
+                <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 22, fontWeight: 700, color: 'var(--vio)' }}>{stats.totalArticles}</div>
+                <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>ARTICLES</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -113,6 +153,7 @@ const App = () => (
 
     <FooterStrip />
   </div>
-);
+  );
+};
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);

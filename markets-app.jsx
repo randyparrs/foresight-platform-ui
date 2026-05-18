@@ -57,8 +57,8 @@ const MarketCard = ({ m, onRefresh }) => {
     try {
       const hash = await fn();
       setTx(hash);
-      // Reload market data after a short delay so state updates
-      setTimeout(() => onRefresh && onRefresh(), 3000);
+      // Reload market data tras 5s para que el contrato actualice
+      setTimeout(() => onRefresh && onRefresh(), 5000);
     } catch (e) {
       setTx('ERR:' + (e.message || String(e)));
     } finally {
@@ -197,6 +197,17 @@ const MarketCard = ({ m, onRefresh }) => {
         </div>
 
         <TxStatus tx={tx} />
+
+        {/* Refresh manual */}
+        <button onClick={() => onRefresh && onRefresh()} disabled={busy}
+          style={{
+            marginTop: 6, padding: '3px 8px', borderRadius: 3, cursor: 'pointer',
+            background: 'transparent', color: 'var(--ink-3)',
+            border: '1px solid var(--line-2)',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+          }}>
+          ↺ REFRESH
+        </button>
       </div>
     </div>
   );
