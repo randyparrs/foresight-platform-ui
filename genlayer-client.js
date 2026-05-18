@@ -340,6 +340,7 @@ async function glWrite(address, method, args = []) {
       from: account,
       to:   address,
       data,
+      gas: '0xF4240', // 1,000,000 gas — requerido por GenLayer para ejecutar GenVM
     }],
   });
 
