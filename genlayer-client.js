@@ -333,17 +333,18 @@ async function glWrite(address, method, args = []) {
 
   const data = buildWriteCalldata(method, args);
 
-  // Enviamos directo al RPC — MetaMask borra el campo data al reenviar
+  // Usamos gen_call con type:'write' — igual que el Studio (genera tx tipo "Call")
   const res = await fetch(RPC_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       jsonrpc: '2.0',
       id: Date.now(),
-      method: 'eth_sendTransaction',
+      method: 'gen_call',
       params: [{
-        from:  account,
-        to:    address,
+        type: 'write',
+        from: account,
+        to:   address,
         data,
         value: '0x0',
       }],
