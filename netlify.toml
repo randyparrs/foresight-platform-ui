@@ -1,4 +1,4 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://studio.genlayer.com https://unpkg.com; img-src 'self' data:;"
+    Content-Security-Policy = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
