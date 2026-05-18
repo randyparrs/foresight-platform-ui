@@ -320,6 +320,63 @@ async function loadSignalSummary() {
   return parseSummary(raw);
 }
 
+// ── Write (transaction) ───────────────────────────────────────────────────────
+async function glWrite(address, method, args = []) {
+  if (!window.ethereum) throw new Error('No wallet detected. Install MetaMask or Rabby.');
+  const account = window.__glAccount || sessionStorage.getItem('gl_account');
+  if (!account) throw new Error('Connect your wallet first.');
+
+  const data = buildCalldata(method, args);
+
+  const txHash = await window.ethereum.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from:    account,
+      to:      address,
+      data,
+      chainId: '0xF25F', // 61999
+    }],
+  });
+
+  console.log(`[GL] WRITE ${method}(${args.join(',')}) → ${txHash}`);
+  return txHash;
+}
+
+// ── Market writes ─────────────────────────────────────────────────────────────
+function generateMarket(sourceUrl) {
+  return glWrite(MARKETS_ADDR, 'generate_market', [sourceUrl]);
+}
+
+function placePrediction(marketId, side, amount) {
+  // side: 'YES' | 'NO'  — amount: integer points
+  return glWrite(MARKETS_ADDR, 'place_prediction', [String(marketId), side, parseInt(amount)]);
+}
+
+function resolveMarket(marketId) {
+  return glWrite(MARKETS_ADDR, 'resolve_market', [String(marketId)]);
+}
+
+function reResolveMarket(marketId) {
+  return glWrite(MARKETS_ADDR, 're_resolve_market', [String(marketId)]);
+}
+
+function expireMarket(marketId) {
+  return glWrite(MARKETS_ADDR, 'expire_market', [String(marketId)]);
+}
+
+function claimWinnings(marketId) {
+  return glWrite(MARKETS_ADDR, 'claim_winnings', [String(marketId)]);
+}
+
+function claimRefund(marketId) {
+  return glWrite(MARKETS_ADDR, 'claim_refund', [String(marketId)]);
+}
+
+// ── Signal writes ─────────────────────────────────────────────────────────────
+function publishArticle(category, url1, url2, url3) {
+  return glWrite(SIGNAL_ADDR, 'publish_article', [category, url1, url2, url3]);
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 console.log('[GL] Connecting to GenLayer Studio at', RPC_URL);
 
@@ -327,6 +384,14 @@ window.__glMarketsPromise       = loadMarkets().catch(e       => { console.error
 window.__glMarketSummaryPromise = loadMarketSummary().catch(e => { console.error('[GL] MktSumm error:', e);     return null; });
 window.__glArticlesPromise      = loadArticles(20).catch(e    => { console.error('[GL] Articles error:', e);    return null; });
 window.__glSignalSummaryPromise = loadSignalSummary().catch(e => { console.error('[GL] SgnSumm error:', e);     return null; });
-window.__glAPI = { loadMarkets, loadMarketSummary, loadArticles, loadSignalSummary };
+window.__glAPI = {
+  // reads
+  loadMarkets, loadMarketSummary, loadArticles, loadSignalSummary,
+  // writes — markets
+  generateMarket, placePrediction, resolveMarket, reResolveMarket,
+  expireMarket, claimWinnings, claimRefund,
+  // writes — signal
+  publishArticle,
+};
 
 document.dispatchEvent(new CustomEvent('glReady'));

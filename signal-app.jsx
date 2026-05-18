@@ -155,8 +155,126 @@ const ArticleCard = ({ a }) => (
   </div>
 );
 
+// ── Publish Article panel ─────────────────────────────────────────────────────
+const TxStatus = ({ tx }) => {
+  if (!tx) return null;
+  const isErr = tx.startsWith('ERR:');
+  return (
+    <div style={{
+      marginTop: 8, padding: '6px 10px', borderRadius: 3,
+      fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+      letterSpacing: '0.05em', wordBreak: 'break-all',
+      background: isErr ? 'rgba(255,80,80,0.08)' : 'rgba(76,232,110,0.08)',
+      color: isErr ? 'var(--bear)' : 'var(--yes)',
+      border: `1px solid ${isErr ? 'var(--bear)' : 'var(--yes)'}`,
+    }}>
+      {isErr ? '✕ ' + tx.slice(4) : '✓ TX: ' + tx.slice(0, 20) + '…'}
+    </div>
+  );
+};
+
+const SIGNAL_CATS = ['CRYPTO', 'MARKETS', 'TECH', 'POLITICS', 'SPORTS', 'OTHER'];
+
+const PublishPanel = ({ onRefresh }) => {
+  const [category, setCategory] = useState('CRYPTO');
+  const [url1, setUrl1]         = useState('');
+  const [url2, setUrl2]         = useState('');
+  const [url3, setUrl3]         = useState('');
+  const [busy, setBusy]         = useState(false);
+  const [tx,   setTx]           = useState(null);
+
+  const submit = async () => {
+    if (!url1.trim()) return;
+    setBusy(true);
+    setTx(null);
+    try {
+      const hash = await window.__glAPI.publishArticle(
+        category,
+        url1.trim(),
+        url2.trim() || url1.trim(),
+        url3.trim() || url1.trim(),
+      );
+      setTx(hash);
+      setUrl1(''); setUrl2(''); setUrl3('');
+      setTimeout(() => onRefresh && onRefresh(), 4000);
+    } catch (e) {
+      setTx('ERR:' + (e.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const inputStyle = {
+    width: '100%', padding: '7px 11px', borderRadius: 3,
+    background: 'var(--surface-2)', color: 'var(--ink-0)',
+    border: '1px solid var(--line-2)',
+    fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <div style={{
+      padding: '16px 20px', borderRadius: 4,
+      border: '1px solid var(--acc)',
+      background: 'rgba(76,232,230,0.04)',
+      marginBottom: 24,
+    }}>
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+        color: 'var(--acc)', letterSpacing: '0.15em', marginBottom: 12,
+      }}>
+        // PUBLISH_ARTICLE · SUBMIT TO SIG-01 AI JOURNALIST
+      </div>
+
+      {/* Category selector */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        {SIGNAL_CATS.map(c => (
+          <button key={c} onClick={() => setCategory(c)}
+            style={{
+              padding: '4px 10px', borderRadius: 3, cursor: 'pointer',
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.1em',
+              background: category === c ? 'var(--acc)' : 'transparent',
+              color: category === c ? '#000' : 'var(--acc)',
+              border: '1px solid var(--acc)',
+            }}
+          >{c}</button>
+        ))}
+      </div>
+
+      {/* URL inputs */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+        <input type="url" value={url1} onChange={e => setUrl1(e.target.value)}
+          placeholder="Source URL 1 (required)" disabled={busy} style={inputStyle} />
+        <input type="url" value={url2} onChange={e => setUrl2(e.target.value)}
+          placeholder="Source URL 2 (optional)" disabled={busy} style={inputStyle} />
+        <input type="url" value={url3} onChange={e => setUrl3(e.target.value)}
+          placeholder="Source URL 3 (optional)" disabled={busy} style={inputStyle} />
+      </div>
+
+      <button
+        onClick={submit}
+        disabled={busy || !url1.trim()}
+        style={{
+          padding: '8px 20px', borderRadius: 3,
+          background: busy ? 'transparent' : 'var(--acc)',
+          color: busy ? 'var(--acc)' : '#000',
+          border: '1px solid var(--acc)',
+          cursor: busy || !url1.trim() ? 'not-allowed' : 'pointer',
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700,
+          letterSpacing: '0.1em',
+        }}
+      >
+        {busy ? 'PUBLISHING…' : '⬆ PUBLISH ARTICLE'}
+      </button>
+
+      <TxStatus tx={tx} />
+    </div>
+  );
+};
+
 // ── App ───────────────────────────────────────────────────────────────────────
-const { useState, useEffect } = React;
+const { useState, useEffect, useCallback } = React;
 
 const App = () => {
   const [feature, setFeature]       = useState(FEATURE_MOCK);
@@ -165,6 +283,18 @@ const App = () => {
   const [totalArticles, setTotal]   = useState('1,284');
   const [live, setLive]             = useState(false);
   const [loading, setLoading]       = useState(true);
+
+  const fetchArticles = useCallback(() => {
+    if (!window.__glAPI) return;
+    window.__glAPI.loadArticles(20).then(data => {
+      if (data && data.length > 0) {
+        setFeature(data[0]);
+        setArticles(data.slice(1));
+        setTotal(String(data.length));
+        setLive(true);
+      }
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const applyArticles = (data) => {
@@ -237,6 +367,9 @@ const App = () => {
               <span>ARTICLES · {live ? "LIVE ON-CHAIN" : "UPDATED EVERY BLOCK"}</span>
             </div>
           </div>
+
+          {/* Publish article panel */}
+          <PublishPanel onRefresh={fetchArticles} />
 
           <SignalAgentHero totalArticles={totalArticles} live={live} />
 

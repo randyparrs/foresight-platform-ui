@@ -1,19 +1,19 @@
 /* global React, ReactDOM, Topbar, FooterStrip */
 
-// ── Mock fallback (shown while contract loads or if offline) ─────────────────
+// ── Mock fallback ─────────────────────────────────────────────────────────────
 const MARKETS_MOCK = [
   { id: 12, category: "CRYPTO",   question: "Will BTC close above $150,000 by Dec 31, 2026?",             yes_pct: 68, pool_total: 12420, quality: 9, status: "OPEN"   },
   { id: 31, category: "POLITICS", question: "Will the US Fed cut rates at the July 2026 FOMC meeting?",   yes_pct: 71, pool_total: 22180, quality: 8, status: "OPEN"   },
   { id: 22, category: "TECH",     question: "Will Apple ship AR glasses to consumers in 2026?",           yes_pct: 31, pool_total: 8930,  quality: 7, status: "OPEN"   },
-  { id: 47, category: "SPORTS",   question: "Will Real Madrid win the UEFA Champions League 2026?",       yes_pct: 54, pool_total: 5210,  quality: 9, status: "OPEN"   },
-  { id: 18, category: "CRYPTO",   question: "Will ETH/BTC ratio exceed 0.07 by end of Q3?",              yes_pct: 44, pool_total: 3610,  quality: 7, status: "OPEN"   },
-  { id: 51, category: "TECH",     question: "Will OpenAI release GPT-6 with public API before September?",yes_pct: 41, pool_total: 11750, quality: 8, status: "OPEN"   },
-  { id: 8,  category: "POLITICS", question: "Will the EU pass the foundation-model FLOP cap into law?",  yes_pct: 19, pool_total: 6400,  quality: 8, status: "OPEN"   },
-  { id: 60, category: "SPORTS",   question: "Will Max Verstappen win the F1 2026 Drivers Championship?",  yes_pct: 62, pool_total: 4890,  quality: 9, status: "OPEN"   },
-  { id: 27, category: "OTHER",    question: "Will SpaceX Starship complete two orbital missions in May?", yes_pct: 77, pool_total: 9210,  quality: 8, status: "OPEN"   },
 ];
 
-// ── Components ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const { useState, useEffect, useCallback } = React;
+
+const fmtPool = (n) =>
+  n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n || 0);
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 const QualityBar = ({ n }) => (
   <span className="quality-bar">
     {Array.from({ length: 10 }, (_, i) => (
@@ -22,23 +22,65 @@ const QualityBar = ({ n }) => (
   </span>
 );
 
-const MarketCard = ({ m }) => {
+// Small status badge for tx feedback
+const TxStatus = ({ tx }) => {
+  if (!tx) return null;
+  const isErr = tx.startsWith('ERR:');
+  return (
+    <div style={{
+      marginTop: 8, padding: '6px 10px', borderRadius: 3,
+      fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+      letterSpacing: '0.05em', wordBreak: 'break-all',
+      background: isErr ? 'rgba(255,80,80,0.08)' : 'rgba(76,232,110,0.08)',
+      color: isErr ? 'var(--bear)' : 'var(--yes)',
+      border: `1px solid ${isErr ? 'var(--bear)' : 'var(--yes)'}`,
+    }}>
+      {isErr ? '✕ ' + tx.slice(4) : '✓ TX: ' + tx.slice(0, 20) + '…'}
+    </div>
+  );
+};
+
+// ── MarketCard with full interaction panel ────────────────────────────────────
+const MarketCard = ({ m, onRefresh }) => {
+  const [amount, setAmount]   = useState('100');
+  const [busy,   setBusy]     = useState(false);
+  const [tx,     setTx]       = useState(null);
   const no = 100 - m.yes_pct;
-  const pool = m.pool_total >= 1000
-    ? (m.pool_total / 1000).toFixed(1).replace(/\.0$/, '') + 'K'
-    : String(m.pool_total);
-  const statusColor = m.status === "OPEN"
-    ? "var(--yes)"
-    : m.status === "RESOLVED" ? "var(--acc)"
-    : "var(--ink-3)";
+  const statusColor = m.status === 'OPEN'
+    ? 'var(--yes)'
+    : m.status === 'RESOLVED' ? 'var(--acc)'
+    : 'var(--ink-3)';
+
+  const run = useCallback(async (fn) => {
+    setBusy(true);
+    setTx(null);
+    try {
+      const hash = await fn();
+      setTx(hash);
+      // Reload market data after a short delay so state updates
+      setTimeout(() => onRefresh && onRefresh(), 3000);
+    } catch (e) {
+      setTx('ERR:' + (e.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  }, [onRefresh]);
+
+  const bet = (side) =>
+    run(() => window.__glAPI.placePrediction(m.id, side, parseInt(amount) || 100));
 
   return (
     <div className="mcard">
+      {/* Header */}
       <div className="mcard-head">
-        <span>MKT_{String(m.id).padStart(4, "0")}</span>
+        <span>MKT_{String(m.id).padStart(4, '0')}</span>
         <span className={`cat-tag ${m.category}`}>{m.category}</span>
       </div>
+
+      {/* Question */}
       <div className="mcard-q">{m.question}</div>
+
+      {/* YES / NO bar */}
       <div className="mcard-row">
         <div className="mcard-side yes">
           <span className="lbl">YES</span>
@@ -49,10 +91,12 @@ const MarketCard = ({ m }) => {
           <span className="pct">{no}%</span>
         </div>
       </div>
+
+      {/* Pool info */}
       <div className="mcard-foot">
-        <span>POOL <b>{pool}</b> pts</span>
+        <span>POOL <b>{fmtPool(m.pool_total)}</b> pts</span>
         {m.result
-          ? <span style={{ color: "var(--acc)" }}>RESULT: <b>{m.result}</b></span>
+          ? <span style={{ color: 'var(--acc)' }}>RESULT: <b>{m.result}</b></span>
           : <span>STAKES <b>{m.yes_pool || 0}Y / {m.no_pool || 0}N</b></span>
         }
       </div>
@@ -60,25 +104,200 @@ const MarketCard = ({ m }) => {
         <span>QUALITY <QualityBar n={m.quality} /></span>
         <span style={{ color: statusColor }}>● {m.status}</span>
       </div>
+
+      {/* ── Action panel ── */}
+      <div style={{
+        marginTop: 14, paddingTop: 14,
+        borderTop: '1px solid var(--line-2)',
+        display: 'flex', flexDirection: 'column', gap: 8,
+      }}>
+
+        {/* Bet row — only shown when OPEN */}
+        {m.status === 'OPEN' && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="number"
+              min="1"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              disabled={busy}
+              style={{
+                width: 72, padding: '5px 8px', borderRadius: 3,
+                background: 'var(--surface-2)', color: 'var(--ink-0)',
+                border: '1px solid var(--line-2)',
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+              }}
+              placeholder="pts"
+            />
+            <button
+              className="btn-bet yes"
+              onClick={() => bet('YES')}
+              disabled={busy}
+              style={{
+                flex: 1, padding: '5px 10px', borderRadius: 3,
+                background: 'rgba(76,232,110,0.12)', color: 'var(--yes)',
+                border: '1px solid var(--yes)', cursor: 'pointer',
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 600,
+              }}
+            >
+              {busy ? '…' : '▲ BET YES'}
+            </button>
+            <button
+              className="btn-bet no"
+              onClick={() => bet('NO')}
+              disabled={busy}
+              style={{
+                flex: 1, padding: '5px 10px', borderRadius: 3,
+                background: 'rgba(255,80,80,0.12)', color: 'var(--bear)',
+                border: '1px solid var(--bear)', cursor: 'pointer',
+                fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 600,
+              }}
+            >
+              {busy ? '…' : '▼ BET NO'}
+            </button>
+          </div>
+        )}
+
+        {/* Admin / resolution row */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {m.status === 'OPEN' && (
+            <>
+              <button onClick={() => run(() => window.__glAPI.resolveMarket(m.id))} disabled={busy}
+                style={btnStyle('var(--vio)')}>
+                {busy ? '…' : '⚙ RESOLVE AI'}
+              </button>
+              <button onClick={() => run(() => window.__glAPI.expireMarket(m.id))} disabled={busy}
+                style={btnStyle('var(--ink-3)')}>
+                {busy ? '…' : '⏱ EXPIRE'}
+              </button>
+            </>
+          )}
+          {m.status === 'RESOLVED' && (
+            <>
+              <button onClick={() => run(() => window.__glAPI.reResolveMarket(m.id))} disabled={busy}
+                style={btnStyle('var(--vio)')}>
+                {busy ? '…' : '⚙ RE-RESOLVE'}
+              </button>
+              <button onClick={() => run(() => window.__glAPI.claimWinnings(m.id))} disabled={busy}
+                style={btnStyle('var(--yes)')}>
+                {busy ? '…' : '💰 CLAIM WIN'}
+              </button>
+              <button onClick={() => run(() => window.__glAPI.claimRefund(m.id))} disabled={busy}
+                style={btnStyle('var(--acc)')}>
+                {busy ? '…' : '↩ CLAIM REFUND'}
+              </button>
+            </>
+          )}
+          {m.status === 'EXPIRED' && (
+            <button onClick={() => run(() => window.__glAPI.claimRefund(m.id))} disabled={busy}
+              style={btnStyle('var(--acc)')}>
+              {busy ? '…' : '↩ CLAIM REFUND'}
+            </button>
+          )}
+        </div>
+
+        <TxStatus tx={tx} />
+      </div>
+    </div>
+  );
+};
+
+const btnStyle = (color) => ({
+  padding: '4px 10px', borderRadius: 3,
+  background: 'transparent', color,
+  border: `1px solid ${color}`, cursor: 'pointer',
+  fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 600,
+  letterSpacing: '0.06em',
+});
+
+// ── Generate Market panel ─────────────────────────────────────────────────────
+const GeneratePanel = ({ onRefresh }) => {
+  const [url,  setUrl]  = useState('');
+  const [busy, setBusy] = useState(false);
+  const [tx,   setTx]   = useState(null);
+
+  const submit = async () => {
+    if (!url.trim()) return;
+    setBusy(true);
+    setTx(null);
+    try {
+      const hash = await window.__glAPI.generateMarket(url.trim());
+      setTx(hash);
+      setUrl('');
+      setTimeout(() => onRefresh && onRefresh(), 4000);
+    } catch (e) {
+      setTx('ERR:' + (e.message || String(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{
+      padding: '16px 20px', borderRadius: 4,
+      border: '1px solid var(--vio)',
+      background: 'rgba(138,124,255,0.05)',
+      marginBottom: 24,
+    }}>
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+        color: 'var(--vio)', letterSpacing: '0.15em', marginBottom: 10,
+      }}>
+        // GENERATE_MARKET · AI AUTHORING FROM URL
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input
+          type="url"
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder="https://news-source.com/article-url"
+          disabled={busy}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          style={{
+            flex: 1, minWidth: 200, padding: '8px 12px', borderRadius: 3,
+            background: 'var(--surface-2)', color: 'var(--ink-0)',
+            border: '1px solid var(--line-2)',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
+          }}
+        />
+        <button
+          onClick={submit}
+          disabled={busy || !url.trim()}
+          style={{
+            padding: '8px 18px', borderRadius: 3,
+            background: busy ? 'transparent' : 'var(--vio)',
+            color: busy ? 'var(--vio)' : '#fff',
+            border: '1px solid var(--vio)',
+            cursor: busy || !url.trim() ? 'not-allowed' : 'pointer',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.1em',
+          }}
+        >
+          {busy ? 'SUBMITTING…' : '+ GENERATE'}
+        </button>
+      </div>
+      <TxStatus tx={tx} />
     </div>
   );
 };
 
 // ── App ───────────────────────────────────────────────────────────────────────
-const { useState, useEffect } = React;
-
 const App = () => {
-  const [markets, setMarkets]     = useState(MARKETS_MOCK);
-  const [summary, setSummary]     = useState({ open: 372, total: 912 });
-  const [live, setLive]           = useState(false);
-  const [loading, setLoading]     = useState(true);
+  const [markets, setMarkets] = useState(MARKETS_MOCK);
+  const [summary, setSummary] = useState({ open: 372, total: 912 });
+  const [live,    setLive]    = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMarkets = useCallback(() => {
+    if (!window.__glAPI) return;
+    window.__glAPI.loadMarkets().then(data => {
+      if (data && data.length > 0) { setMarkets(data); setLive(true); }
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const applyMarkets = (data) => {
-      if (data && data.length > 0) {
-        setMarkets(data);
-        setLive(true);
-      }
+      if (data && data.length > 0) { setMarkets(data); setLive(true); }
       setLoading(false);
     };
 
@@ -102,7 +321,6 @@ const App = () => {
       run();
     } else {
       document.addEventListener('glReady', run, { once: true });
-      // fallback timeout — keep mock if module never loads
       setTimeout(() => setLoading(false), 3000);
     }
 
@@ -118,7 +336,7 @@ const App = () => {
           <div className="sec-header">
             <div>
               <div className="sec-eyebrow">
-                // MARKETS_INDEX · {live ? "LIVE · ON-CHAIN" : "DEMO"}
+                // MARKETS_INDEX · {live ? 'LIVE · ON-CHAIN' : 'DEMO'}
               </div>
               <h1 className="sec-title">Browse <span className="accent">markets</span>.</h1>
               <p className="sec-sub">
@@ -150,18 +368,23 @@ const App = () => {
             </div>
           </div>
 
+          {/* Generate market panel */}
+          <GeneratePanel onRefresh={fetchMarkets} />
+
           {loading && (
-            <div style={{ padding: "24px 0", color: "var(--ink-3)", fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: "0.15em" }}>
+            <div style={{ padding: '24px 0', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.15em' }}>
               // SYNCING ON-CHAIN DATA...
             </div>
           )}
 
           <div className="market-grid">
-            {markets.map((m) => <MarketCard key={m.id} m={m} />)}
+            {markets.map((m) => (
+              <MarketCard key={m.id} m={m} onRefresh={fetchMarkets} />
+            ))}
           </div>
 
           {live && (
-            <div style={{ marginTop: 16, color: "var(--ink-3)", fontFamily: "JetBrains Mono, monospace", fontSize: 10, letterSpacing: "0.15em" }}>
+            <div style={{ marginTop: 16, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.15em' }}>
               // DATA FROM GENLAYER · CONTRACT 0xC22D…7903
             </div>
           )}
@@ -173,4 +396,4 @@ const App = () => {
   );
 };
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
