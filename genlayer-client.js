@@ -331,10 +331,9 @@ async function glWrite(address, method, args = []) {
   const txHash = await window.ethereum.request({
     method: 'eth_sendTransaction',
     params: [{
-      from:    account,
-      to:      address,
+      from: account,
+      to:   address,
       data,
-      chainId: '0xF25F', // 61999
     }],
   });
 

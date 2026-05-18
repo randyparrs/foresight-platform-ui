@@ -451,8 +451,62 @@ const Hero = () => (
 // =============================================================
 //  APP
 // =============================================================
+const { useState: useStateApp, useEffect: useEffectApp } = React;
+
 const App = () => {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [featured, setFeatured] = useStateApp(FEATURED);
+  const [news,     setNews]     = useStateApp(NEWS);
+  const [live,     setLive]     = useStateApp(false);
+
+  useEffectApp(() => {
+    const applyMarkets = (data) => {
+      if (!data || data.length === 0) return;
+      // Convertir al formato que usa FeaturedCard
+      const cards = data.slice(0, 4).map(m => ({
+        id:     m.id,
+        cat:    m.category,
+        q:      m.question,
+        yes:    m.yes_pct,
+        pool:   m.pool_total >= 1000
+                  ? (m.pool_total / 1000).toFixed(1).replace(/\.0$/, '') + 'K'
+                  : String(m.pool_total),
+        closes: m.status,
+      }));
+      setFeatured(cards);
+      setLive(true);
+    };
+
+    const applyArticles = (data) => {
+      if (!data || data.length === 0) return;
+      const cards = data.slice(0, 4).map((a, i) => ({
+        feature:   i === 0,
+        cat:       a.category,
+        sentiment: a.sentiment || 'NEUTRAL',
+        time:      `BLK ${(a.block || 0).toLocaleString()}`,
+        block:     a.block || 0,
+        title:     a.title,
+        headline:  a.headline,
+        tags:      a.tags || [],
+        sources:   Array.isArray(a.sources) ? a.sources.length : 0,
+        count:     0,
+      }));
+      setNews(cards);
+    };
+
+    const run = () => {
+      window.__glMarketsPromise  && window.__glMarketsPromise.then(applyMarkets);
+      window.__glArticlesPromise && window.__glArticlesPromise.then(applyArticles);
+    };
+
+    if (window.__glAPI) {
+      run();
+    } else {
+      document.addEventListener('glReady', run, { once: true });
+    }
+
+    return () => document.removeEventListener('glReady', run);
+  }, []);
 
   const Bg =
     t.bg === "rings"   ? <BGRings />   :
@@ -479,18 +533,18 @@ const App = () => {
         <div className="section">
           <div className="section-head">
             <div className="left">
-              <div className="eye">LIVE · FORESIGHT MARKETS</div>
+              <div className="eye">{live ? "LIVE · ON-CHAIN" : "LIVE · FORESIGHT MARKETS"}</div>
               <h2>
                 <span className="accent">Foresight</span> markets,{" "}
                 <em>worth watching.</em>
               </h2>
             </div>
             <div className="right">
-              <span className="pill-link">VIEW ALL  →</span>
+              <a href="Markets.html" className="pill-link">VIEW ALL  →</a>
             </div>
           </div>
           <div className="market-row">
-            {FEATURED.map((m) => <FeaturedCard key={m.id} m={m} />)}
+            {featured.map((m) => <FeaturedCard key={m.id} m={m} />)}
           </div>
         </div>
 
@@ -506,11 +560,11 @@ const App = () => {
               </h2>
             </div>
             <div className="right">
-              <span className="pill-link">READ THE SIGNAL  →</span>
+              <a href="TheSignal.html" className="pill-link">READ THE SIGNAL  →</a>
             </div>
           </div>
           <div className="news-grid">
-            {NEWS.map((n, i) => <NewsCard key={i} n={n} />)}
+            {news.map((n, i) => <NewsCard key={i} n={n} />)}
           </div>
         </div>
 
