@@ -1,11 +1,7 @@
 /* global React, ReactDOM, Topbar, FooterStrip */
 
 // ── Mock fallback ─────────────────────────────────────────────────────────────
-const MARKETS_MOCK = [
-  { id: 12, category: "CRYPTO",   question: "Will BTC close above $150,000 by Dec 31, 2026?",             yes_pct: 68, pool_total: 12420, quality: 9, status: "OPEN"   },
-  { id: 31, category: "POLITICS", question: "Will the US Fed cut rates at the July 2026 FOMC meeting?",   yes_pct: 71, pool_total: 22180, quality: 8, status: "OPEN"   },
-  { id: 22, category: "TECH",     question: "Will Apple ship AR glasses to consumers in 2026?",           yes_pct: 31, pool_total: 8930,  quality: 7, status: "OPEN"   },
-];
+const MARKETS_MOCK = [];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const { useState, useEffect, useCallback } = React;
@@ -294,8 +290,8 @@ const GeneratePanel = ({ onRefresh }) => {
 
 // ── App ───────────────────────────────────────────────────────────────────────
 const App = () => {
-  const [markets, setMarkets] = useState(MARKETS_MOCK);
-  const [summary, setSummary] = useState({ open: 372, total: 912 });
+  const [markets, setMarkets] = useState([]);
+  const [summary, setSummary] = useState({ open: 0, total: 0 });
   const [live,    setLive]    = useState(false);
   const [loading, setLoading] = useState(true);
 

@@ -294,7 +294,7 @@ async function loadMarkets() {
   const count = parseInt(String(countRaw)) || 0;
   console.log('[GL] Market count:', count);
   if (count === 0) return [];
-  const ids = Array.from({ length: Math.min(count, 30) }, (_, i) => String(i));
+  const ids = Array.from({ length: count }, (_, i) => String(i));
   const results = await Promise.all(ids.map(id => glCall(MARKETS_ADDR, 'get_market', [id])));
   return results.map((r, i) => parseMarket(r, ids[i])).filter(Boolean);
 }
