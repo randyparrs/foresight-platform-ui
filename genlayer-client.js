@@ -7,12 +7,12 @@ import { studionet } from 'https://esm.sh/genlayer-js/chains';
 //   calldata = custom type-tagged ULeb128 binary
 //   data     = RLP([calldataBytes, 0])  ← hex-encoded
 //
-// Foresight Markets : 0xC22D35c20D53730a86A7d456fc03B48556287903
+// Foresight Markets : 0x7F6BF01DbbC3be569a5C0f00A393E3D0dB3Aa413
 // The Signal        : 0xCb20df465C11BcB67e87b68A5B936453340c9d01
 // RPC               : https://studio.genlayer.com/api
 // Chain ID          : 61999
 
-const MARKETS_ADDR = '0xC22D35c20D53730a86A7d456fc03B48556287903';
+const MARKETS_ADDR = '0x7F6BF01DbbC3be569a5C0f00A393E3D0dB3Aa413';
 const SIGNAL_ADDR  = '0xCb20df465C11BcB67e87b68A5B936453340c9d01';
 const RPC_URL      = 'https://studio.genlayer.com/api';
 const FROM_ADDR    = '0x0000000000000000000000000000000000000001';
@@ -356,71 +356,52 @@ async function loadMyPredictions(address) {
   }
 }
 
-// Extract any ethereum addresses from arbitrary text
-function extractAddresses(text) {
-  if (!text) return [];
-  const matches = String(text).match(/0x[a-fA-F0-9]{40}/g) || [];
-  return [...new Set(matches.map(a => a.toLowerCase()))];
+// ── Top predictors (v0.2 contract — uses get_top_predictors directly) ────────
+// Contract returns the leaderboard as a formatted string:
+//   "Top predictors (N): 0xaddr1=WW/LL/TT | 0xaddr2=WW/LL/TT | ..."
+// where W=wins, L=losses, T=total bets.
+async function loadTopPredictors() {
+  try {
+    const raw = await glCall(MARKETS_ADDR, 'get_top_predictors', []);
+    console.log('[GL] get_top_predictors raw response →', raw);
+    return parseTopPredictors(String(raw || ''));
+  } catch (e) {
+    console.error('[GL] loadTopPredictors error:', e);
+    return [];
+  }
 }
 
-// Build a predictor leaderboard from on-chain data.
-// 1. Loads all markets, also logs the raw text of get_market(0) so we can see
-//    whether the contract response contains bettor addresses.
-// 2. Collects unique addresses found across all markets.
-// 3. For each address, fetches get_my_predictions and aggregates stats.
-// 4. Returns array sorted by wins desc, then total_bets desc.
-async function loadPredictorRanking() {
-  try {
-    const countRaw = await glCall(MARKETS_ADDR, 'get_market_count', []);
-    const count = parseInt(String(countRaw)) || 0;
-    if (count === 0) return [];
-
-    const ids = Array.from({ length: count }, (_, i) => String(i));
-    const raws = await Promise.all(
-      ids.map(id => glCall(MARKETS_ADDR, 'get_market', [id]).catch(() => null))
-    );
-
-    // Log first market raw so we can inspect what fields the contract returns
-    console.log('[GL] get_market(0) raw response →', raws[0]);
-
-    // Collect addresses from all markets
-    const addrs = new Set();
-    for (const r of raws) {
-      extractAddresses(r).forEach(a => addrs.add(a));
-    }
-    console.log('[GL] Unique bettor addresses found:', addrs.size);
-
-    if (addrs.size === 0) {
-      // Contract response does not include bettor addresses — caller falls back
-      return [];
-    }
-
-    const addrArr = [...addrs];
-    const predictionsRaws = await Promise.all(
-      addrArr.map(a => glCall(MARKETS_ADDR, 'get_my_predictions', [a]).catch(() => ''))
-    );
-
-    const ranking = addrArr.map((addr, i) => {
-      const preds = parseMyPredictions(predictionsRaws[i]);
-      const wins   = preds.filter(p => p.status === 'RESOLVED' && p.result && p.side === p.result).length;
-      const losses = preds.filter(p => p.status === 'RESOLVED' && p.result && p.side !== p.result).length;
-      const total  = preds.length;
-      const wr     = (wins + losses) > 0 ? Math.round((wins * 100) / (wins + losses)) : 0;
-      return {
-        address: addr,
-        totalBets: total,
-        wins,
-        losses,
-        winRate: wr,
-        pts: wins - losses,
-      };
+function parseTopPredictors(raw) {
+  if (!raw || raw.indexOf('=') === -1) return [];
+  const entries = raw.split('|').map(s => s.trim()).filter(Boolean);
+  const ranking = [];
+  for (const entry of entries) {
+    // Match "0xabc...123=5W/2L/9T"
+    const m = entry.match(/(0x[a-fA-F0-9]{40})\s*=\s*(\d+)\s*W\s*\/\s*(\d+)\s*L\s*\/\s*(\d+)\s*T/i);
+    if (!m) continue;
+    const addr      = m[1].toLowerCase();
+    const wins      = parseInt(m[2], 10);
+    const losses    = parseInt(m[3], 10);
+    const totalBets = parseInt(m[4], 10);
+    const wr        = (wins + losses) > 0 ? Math.round((wins * 100) / (wins + losses)) : 0;
+    ranking.push({
+      address:  addr,
+      wins,
+      losses,
+      totalBets,
+      winRate:  wr,
+      pts:      wins - losses,
     });
+  }
+  return ranking;
+}
 
-    ranking.sort((a, b) => b.wins - a.wins || b.totalBets - a.totalBets);
-    return ranking;
+async function loadBettorCount() {
+  try {
+    const raw = await glCall(MARKETS_ADDR, 'get_bettor_count', []);
+    return parseInt(String(raw)) || 0;
   } catch (e) {
-    console.error('[GL] loadPredictorRanking error:', e);
-    return [];
+    return 0;
   }
 }
 
@@ -511,7 +492,8 @@ window.__glSignalSummaryPromise = loadSignalSummary().catch(e => { console.error
 window.__glAPI = {
   // reads
   loadMarkets, loadMarketSummary, loadArticles, loadSignalSummary,
-  loadMyPredictions, parseMyPredictions, loadPredictorRanking,
+  loadMyPredictions, parseMyPredictions,
+  loadTopPredictors, parseTopPredictors, loadBettorCount,
   // writes — markets
   generateMarket, placePrediction, resolveMarket, reResolveMarket,
   expireMarket, claimWinnings, claimRefund,

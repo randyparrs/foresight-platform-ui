@@ -313,7 +313,7 @@ const App = () => {
 
           {live && (
             <div style={{ marginTop: 16, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.15em' }}>
-              // DATA FROM GENLAYER · CONTRACT 0xC22D…7903
+              // DATA FROM GENLAYER · CONTRACT 0x7F6B…A413
             </div>
           )}
         </div>

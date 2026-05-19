@@ -66,22 +66,11 @@ const App = () => {
         setStats(prev => ({ ...prev, totalArticles: s['Total Articles'] || '—' }));
       });
 
-      // Predictor ranking — load connected wallet's data joined with markets
+      // Predictor ranking — real on-chain ranking from get_top_predictors
       try {
-        if (window.__glAccount && window.__glAPI && window.__glAPI.loadMyPredictions) {
-          const [myRaw, markets] = await Promise.all([
-            window.__glAPI.loadMyPredictions(window.__glAccount),
-            window.__glAPI.loadMarkets().catch(() => []),
-          ]);
-          const myPreds = (window.__glAPI.parseMyPredictions(myRaw) || []).map(p => {
-            const m = (markets || []).find(mm => mm.id === p.marketId);
-            return m ? { ...p, status: m.status, result: m.result } : p;
-          });
-          const wins    = myPreds.filter(p => p.status === 'RESOLVED' && p.result && p.side === p.result).length;
-          const losses  = myPreds.filter(p => p.status === 'RESOLVED' && p.result && p.side !== p.result).length;
-          const total   = myPreds.length;
-          const wr      = (wins + losses) > 0 ? Math.round((wins * 100) / (wins + losses)) : 0;
-          setRanking([{ address: window.__glAccount.toLowerCase(), totalBets: total, wins, losses, winRate: wr, pts: wins - losses }]);
+        if (window.__glAPI && window.__glAPI.loadTopPredictors) {
+          const data = await window.__glAPI.loadTopPredictors();
+          setRanking(data || []);
         } else {
           setRanking([]);
         }
@@ -149,7 +138,7 @@ const App = () => {
           </div>
         ) : list.length === 0 ? (
           <div style={{ padding: '24px 0', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.15em' }}>
-            // CONNECT YOUR WALLET TO SEE YOUR PREDICTOR STATS
+            // NO PREDICTIONS YET — BE THE FIRST TO BET
           </div>
         ) : (
           <div className="lb-grid">
@@ -179,7 +168,7 @@ const App = () => {
         )}
 
         <div style={{ marginTop: 16, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.15em' }}>
-          // DATA FROM GENLAYER · CONTRACT 0xC22D…7903
+          // DATA FROM GENLAYER · CONTRACT 0x7F6B…A413
         </div>
       </div>
     </div>
