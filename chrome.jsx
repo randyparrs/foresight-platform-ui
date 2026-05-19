@@ -26,23 +26,24 @@ const NAV_ITEMS = [
 const { useState, useEffect } = React;
 
 const Topbar = ({ active = "home" }) => {
-  const [account,  setAccount]  = useState(null);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState(null);
+  const [account, setAccount] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState(null);
 
-  // Restore session
   useEffect(() => {
     const saved = sessionStorage.getItem('gl_account');
-    if (saved) setAccount(saved);
+    if (saved) { setAccount(saved); window.__glAccount = saved; }
 
     if (window.ethereum) {
       window.ethereum.on('accountsChanged', (accounts) => {
         if (accounts.length > 0) {
           setAccount(accounts[0]);
           sessionStorage.setItem('gl_account', accounts[0]);
+          window.__glAccount = accounts[0];
         } else {
           setAccount(null);
           sessionStorage.removeItem('gl_account');
+          window.__glAccount = null;
         }
       });
     }
@@ -50,40 +51,29 @@ const Topbar = ({ active = "home" }) => {
 
   const connectWallet = async () => {
     setError(null);
-
-    if (!window.ethereum) {
-      setError('No wallet detected. Install MetaMask or Rabby.');
-      return;
-    }
-
+    if (!window.ethereum) { setError('Instala MetaMask o Rabby.'); return; }
     setLoading(true);
     try {
-      // Request accounts
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-      // Switch / add GenLayer network
       try {
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: GL_NETWORK.chainId }],
         });
-      } catch (switchErr) {
-        // Chain not added yet — add it
-        if (switchErr.code === 4902) {
+      } catch (sw) {
+        if (sw.code === 4902) {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [GL_NETWORK],
           });
         }
       }
-
       const addr = accounts[0];
       setAccount(addr);
       sessionStorage.setItem('gl_account', addr);
-      // Expose for other scripts
       window.__glAccount = addr;
     } catch (err) {
-      setError(err.code === 4001 ? 'Connection rejected.' : 'Could not connect wallet.');
+      setError(err.code === 4001 ? 'Rechazado.' : 'No se pudo conectar.');
     }
     setLoading(false);
   };
@@ -137,7 +127,7 @@ const Topbar = ({ active = "home" }) => {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{
               fontFamily: "JetBrains Mono,monospace", fontSize: 11,
-              color: "var(--yes)", letterSpacing: "0.05em"
+              color: "var(--yes)", letterSpacing: "0.05em",
             }}>
               ● {shortAddr(account)}
             </span>
@@ -148,7 +138,7 @@ const Topbar = ({ active = "home" }) => {
           </div>
         ) : (
           <button className="btn-wallet" onClick={connectWallet} disabled={loading}>
-            {loading ? 'Connecting…' : 'Connect wallet'}
+            {loading ? 'Conectando…' : 'Connect wallet'}
           </button>
         )}
       </div>

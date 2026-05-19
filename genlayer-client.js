@@ -322,47 +322,25 @@ async function loadSignalSummary() {
 
 // ── Write (transaction) ───────────────────────────────────────────────────────
 function buildWriteCalldata(method, args = []) {
-  // Writes van sin RLP wrap — eso es solo para gen_call reads
   const cd = glEncodeCalldata(method, args);
   return '0x' + Array.from(cd).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function _rpc(method, params) {
-  const res = await fetch(RPC_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
-  });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
-  return json.result;
-}
-
 async function glWrite(address, method, args = []) {
-  if (!window.ethereum) throw new Error('No wallet detected. Install MetaMask or Rabby.');
-  const account = window.__glAccount || sessionStorage.getItem('gl_account');
-  if (!account) throw new Error('Connect your wallet first.');
-
+  if (!window.ethereum) throw new Error('Conecta tu wallet primero.');
+  if (!window.ethers)   throw new Error('ethers.js no cargado.');
   const data = buildWriteCalldata(method, args);
 
-  // Obtenemos el nonce directamente del RPC para que MetaMask no tenga que estimarlo
-  const nonce = await _rpc('eth_getTransactionCount', [account, 'latest']);
-
-  // Mandamos la tx completa — MetaMask solo firma, no modifica nada
-  const txHash = await window.ethereum.request({
-    method: 'eth_sendTransaction',
-    params: [{
-      from:     account,
-      to:       address,
-      data,
-      nonce,
-      gas:      '0xF4240', // 1M gas
-      gasPrice: '0x0',     // testnet sin fees
-    }],
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const signer   = await provider.getSigner();
+  const tx = await signer.sendTransaction({
+    to:       address,
+    data,
+    gasLimit: 1_000_000n,
+    gasPrice: 0n,
   });
-
-  console.log(`[GL] WRITE ${method}(${args.map(String).join(',')}) → ${txHash}`);
-  return txHash;
+  console.log(`[GL] WRITE ${method}(${args.map(String).join(',')}) → ${tx.hash}`);
+  return tx.hash;
 }
 
 // ── Market writes ─────────────────────────────────────────────────────────────
