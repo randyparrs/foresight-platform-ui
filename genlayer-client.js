@@ -291,18 +291,31 @@ function parseSummary(raw) {
 }
 
 // ── Loaders ───────────────────────────────────────────────────────────────────
+// Generic retry helper for transient "Server busy" errors
+async function _retryCall(addr, method, args, attempts = 3, delayMs = 1500) {
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await glCall(addr, method, args);
+    } catch (e) {
+      lastErr = e;
+      const msg = e.message || String(e);
+      console.warn(`[GL] ${method}(${args.join(',')}) attempt ${i + 1}/${attempts} failed: ${msg}`);
+      if (i < attempts - 1) await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+  return null;
+}
+
 async function loadMarkets() {
   const countRaw = await glCall(MARKETS_ADDR, 'get_market_count', []);
   const count = parseInt(String(countRaw)) || 0;
   console.log('[GL] Market count:', count);
   if (count === 0) return [];
   const ids = Array.from({ length: count }, (_, i) => String(i));
-  // Wrap each call so a single failure (server busy) doesn't blow the batch
+  // Each call retries up to 3 times with delay between attempts
   const results = await Promise.all(
-    ids.map(id => glCall(MARKETS_ADDR, 'get_market', [id]).catch(e => {
-      console.warn(`[GL] get_market(${id}) failed:`, e.message || e);
-      return null;
-    }))
+    ids.map(id => _retryCall(MARKETS_ADDR, 'get_market', [id]))
   );
   return results.map((r, i) => parseMarket(r, ids[i])).filter(Boolean);
 }
@@ -319,12 +332,9 @@ async function loadArticles(limit = 20) {
   if (count === 0) return [];
   const n = Math.min(count, limit);
   const ids = Array.from({ length: n }, (_, i) => String(count - 1 - i));
-  // Wrap each call so a single failure (server busy) doesn't blow the batch
+  // Each call retries up to 3 times with delay between attempts
   const results = await Promise.all(
-    ids.map(id => glCall(SIGNAL_ADDR, 'get_article', [id]).catch(e => {
-      console.warn(`[GL] get_article(${id}) failed:`, e.message || e);
-      return null;
-    }))
+    ids.map(id => _retryCall(SIGNAL_ADDR, 'get_article', [id]))
   );
   return results.map((r, i) => parseArticle(r, ids[i])).filter(Boolean);
 }
