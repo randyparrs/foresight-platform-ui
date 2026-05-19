@@ -63,7 +63,7 @@ const MarketCard = ({ m, onRefresh }) => {
   }, [onRefresh]);
 
   const bet = (side) =>
-    run(() => window.__glAPI.placePrediction(m.id, side, parseInt(amount) || 100));
+    run(() => window.__glAPI.placePrediction(m.id, side));
 
   return (
     <div className="mcard">
@@ -108,23 +108,9 @@ const MarketCard = ({ m, onRefresh }) => {
         display: 'flex', flexDirection: 'column', gap: 8,
       }}>
 
-        {/* Bet row — only shown when OPEN */}
+        {/* Bet row — only shown when OPEN. Cada apuesta = 1 punto fijo */}
         {m.status === 'OPEN' && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <input
-              type="number"
-              min="1"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              disabled={busy}
-              style={{
-                width: 72, padding: '5px 8px', borderRadius: 3,
-                background: 'var(--surface-2)', color: 'var(--ink-0)',
-                border: '1px solid var(--line-2)',
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-              }}
-              placeholder="pts"
-            />
             <button
               className="btn-bet yes"
               onClick={() => bet('YES')}
@@ -136,7 +122,7 @@ const MarketCard = ({ m, onRefresh }) => {
                 fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 600,
               }}
             >
-              {busy ? '…' : '▲ BET YES'}
+              {busy ? '…' : '▲ BET 1pt YES'}
             </button>
             <button
               className="btn-bet no"
@@ -149,7 +135,7 @@ const MarketCard = ({ m, onRefresh }) => {
                 fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 600,
               }}
             >
-              {busy ? '…' : '▼ BET NO'}
+              {busy ? '…' : '▼ BET 1pt NO'}
             </button>
           </div>
         )}

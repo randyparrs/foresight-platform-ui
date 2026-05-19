@@ -346,9 +346,9 @@ function generateMarket(sourceUrl, searchTerms) {
   return glWrite(MARKETS_ADDR, 'generate_market', [sourceUrl, searchTerms || '']);
 }
 
-function placePrediction(marketId, side, amount) {
-  // side: 'YES' | 'NO'  — amount: integer points
-  return glWrite(MARKETS_ADDR, 'place_prediction', [String(marketId), side, parseInt(amount)]);
+function placePrediction(marketId, side) {
+  // side: 'YES' | 'NO'  — cada bet vale 1 punto fijo
+  return glWrite(MARKETS_ADDR, 'place_prediction', [String(marketId), side]);
 }
 
 function resolveMarket(marketId) {
