@@ -297,7 +297,13 @@ async function loadMarkets() {
   console.log('[GL] Market count:', count);
   if (count === 0) return [];
   const ids = Array.from({ length: count }, (_, i) => String(i));
-  const results = await Promise.all(ids.map(id => glCall(MARKETS_ADDR, 'get_market', [id])));
+  // Wrap each call so a single failure (server busy) doesn't blow the batch
+  const results = await Promise.all(
+    ids.map(id => glCall(MARKETS_ADDR, 'get_market', [id]).catch(e => {
+      console.warn(`[GL] get_market(${id}) failed:`, e.message || e);
+      return null;
+    }))
+  );
   return results.map((r, i) => parseMarket(r, ids[i])).filter(Boolean);
 }
 
@@ -313,7 +319,13 @@ async function loadArticles(limit = 20) {
   if (count === 0) return [];
   const n = Math.min(count, limit);
   const ids = Array.from({ length: n }, (_, i) => String(count - 1 - i));
-  const results = await Promise.all(ids.map(id => glCall(SIGNAL_ADDR, 'get_article', [id])));
+  // Wrap each call so a single failure (server busy) doesn't blow the batch
+  const results = await Promise.all(
+    ids.map(id => glCall(SIGNAL_ADDR, 'get_article', [id]).catch(e => {
+      console.warn(`[GL] get_article(${id}) failed:`, e.message || e);
+      return null;
+    }))
+  );
   return results.map((r, i) => parseArticle(r, ids[i])).filter(Boolean);
 }
 
@@ -354,7 +366,9 @@ async function loadPredictorRanking() {
     if (count === 0) return [];
 
     const ids = Array.from({ length: count }, (_, i) => String(i));
-    const raws = await Promise.all(ids.map(id => glCall(MARKETS_ADDR, 'get_market', [id])));
+    const raws = await Promise.all(
+      ids.map(id => glCall(MARKETS_ADDR, 'get_market', [id]).catch(() => null))
+    );
 
     // Log first market raw so we can inspect what fields the contract returns
     console.log('[GL] get_market(0) raw response →', raws[0]);
