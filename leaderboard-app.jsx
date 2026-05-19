@@ -2,59 +2,57 @@
 
 const { useState: useLBState, useEffect: useLBEffect } = React;
 
-const fmtPool = (n) =>
-  n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n || 0);
+const short = (a) => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '';
 
-const PodiumCard = ({ rank, m }) => {
-  const no = 100 - (m.yes_pct || 0);
-  return (
-    <div className={`podium-card p${rank}`}>
-      <div className="rank">{String(rank).padStart(2, '0')}</div>
-      <div>
-        <div className="name" style={{ maxWidth: 360 }}>{m.question}</div>
-        <div className="addr">MKT_{String(m.id).padStart(4, '0')}</div>
-        <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-          <span className={`cat-tag ${m.category}`}>{m.category}</span>
-          <span className="badge" style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
-            letterSpacing: '0.2em', padding: '3px 8px', borderRadius: 2,
-            border: '1px solid var(--line-2)', color: 'var(--ink-1)',
-          }}>{m.status}</span>
-        </div>
-      </div>
-      <div className="right">
-        <div className="roi">{fmtPool(m.pool_total)} pts</div>
-        <div className="lbl">{m.yes_pct}% YES · {no}% NO</div>
+const PodiumCard = ({ rank, p, isYou }) => (
+  <div className={`podium-card p${rank}`}>
+    <div className="rank">{String(rank).padStart(2, '0')}</div>
+    <div>
+      <div className="name">{isYou ? 'YOU' : short(p.address)}</div>
+      <div className="addr">{p.address}</div>
+      <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+        <span className="badge" style={{
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em',
+          padding: '3px 8px', borderRadius: 2, border: '1px solid var(--line-2)', color: 'var(--ink-1)',
+        }}>{p.totalBets} BETS</span>
+        <span className="badge" style={{
+          fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.2em',
+          padding: '3px 8px', borderRadius: 2, border: '1px solid var(--yes)', color: 'var(--yes)',
+        }}>{p.wins}W / {p.losses}L</span>
       </div>
     </div>
-  );
-};
-
-const TableRow = ({ rank, m }) => {
-  const no = 100 - (m.yes_pct || 0);
-  return (
-    <div className="lb-table-row">
-      <span className="rank">{String(rank).padStart(2, '0')}</span>
-      <span>
-        <div className="name" style={{ maxWidth: 320 }}>{m.question}</div>
-        <div className="addr">MKT_{String(m.id).padStart(4, '0')}</div>
-      </span>
-      <span className="wr">{m.yes_pct}%</span>
-      <span className="wr">{no}%</span>
-      <span className="pts">{fmtPool(m.pool_total)}</span>
-      <span><span className={`cat-tag ${m.category}`}>{m.category}</span></span>
-      <span className="badge">● {m.status}</span>
+    <div className="right">
+      <div className="roi">{p.pts >= 0 ? '+' : ''}{p.pts} pts</div>
+      <div className="lbl">{p.winRate}% WIN RATE</div>
     </div>
-  );
-};
+  </div>
+);
+
+const TableRow = ({ rank, p, isYou }) => (
+  <div className="lb-table-row" style={isYou ? { borderLeft: '2px solid var(--cyan)' } : null}>
+    <span className="rank">{String(rank).padStart(2, '0')}</span>
+    <span>
+      <div className="name">{isYou ? 'YOU' : short(p.address)}</div>
+      <div className="addr">{p.address}</div>
+    </span>
+    <span className="wr">{p.wins}</span>
+    <span className="wr">{p.losses}</span>
+    <span className="wr">{p.winRate}%</span>
+    <span className="pts">{p.totalBets}</span>
+    <span className="pts" style={{ color: p.pts >= 0 ? 'var(--yes)' : 'var(--bear)' }}>
+      {p.pts >= 0 ? '+' : ''}{p.pts}
+    </span>
+  </div>
+);
 
 const App = () => {
-  const [stats,   setStats]   = useLBState({ totalMarkets: '—', openMarkets: '—', totalArticles: '—' });
-  const [markets, setMarkets] = useLBState([]);
-  const [filter,  setFilter]  = useLBState('ALL');
+  const [stats,    setStats]    = useLBState({ totalMarkets: '—', openMarkets: '—', totalArticles: '—' });
+  const [ranking,  setRanking]  = useLBState(null);
+  const [loading,  setLoading]  = useLBState(true);
 
   useLBEffect(() => {
-    const run = () => {
+    const run = async () => {
+      // Header stats
       window.__glMarketSummaryPromise && window.__glMarketSummaryPromise.then(s => {
         if (!s) return;
         setStats(prev => ({
@@ -65,28 +63,43 @@ const App = () => {
       });
       window.__glSignalSummaryPromise && window.__glSignalSummaryPromise.then(s => {
         if (!s) return;
-        setStats(prev => ({
-          ...prev,
-          totalArticles: s['Total Articles'] || '—',
-        }));
+        setStats(prev => ({ ...prev, totalArticles: s['Total Articles'] || '—' }));
       });
-      window.__glMarketsPromise && window.__glMarketsPromise.then(data => {
-        if (!data) return;
-        const sorted = [...data].sort((a, b) => (b.pool_total || 0) - (a.pool_total || 0));
-        setMarkets(sorted);
-      });
+
+      // Predictor ranking
+      try {
+        const data = await (window.__glAPI && window.__glAPI.loadPredictorRanking
+                            ? window.__glAPI.loadPredictorRanking()
+                            : []);
+
+        // If empty (contract response did not include bettor addresses),
+        // fall back to the connected wallet's row if available
+        if ((!data || data.length === 0) && window.__glAccount && window.__glAPI.loadMyPredictions) {
+          const myRaw   = await window.__glAPI.loadMyPredictions(window.__glAccount);
+          const myPreds = window.__glAPI.parseMyPredictions(myRaw);
+          const wins    = myPreds.filter(p => p.status === 'RESOLVED' && p.result && p.side === p.result).length;
+          const losses  = myPreds.filter(p => p.status === 'RESOLVED' && p.result && p.side !== p.result).length;
+          const total   = myPreds.length;
+          const wr      = (wins + losses) > 0 ? Math.round((wins * 100) / (wins + losses)) : 0;
+          setRanking([{ address: window.__glAccount.toLowerCase(), totalBets: total, wins, losses, winRate: wr, pts: wins - losses }]);
+        } else {
+          setRanking(data);
+        }
+      } catch (e) {
+        console.error('[Leaderboard] error:', e);
+        setRanking([]);
+      }
+      setLoading(false);
     };
     if (window.__glAPI) run();
     else document.addEventListener('glReady', run, { once: true });
     return () => document.removeEventListener('glReady', run);
   }, []);
 
-  const filtered = filter === 'ALL'
-    ? markets
-    : markets.filter(m => (m.category || '').toUpperCase() === filter);
-
-  const podium = filtered.slice(0, 3);
-  const rest   = filtered.slice(3, 18);
+  const me      = (window.__glAccount || '').toLowerCase();
+  const list    = ranking || [];
+  const podium  = list.slice(0, 3);
+  const rest    = list.slice(3, 18);
 
   return (
   <div className="page" style={{ paddingBottom: 32 }}>
@@ -96,11 +109,11 @@ const App = () => {
       <div className="inner-body">
         <div className="sec-header">
           <div>
-            <div className="sec-eyebrow">// FORESIGHT_MARKETS · LIVE STANDINGS</div>
+            <div className="sec-eyebrow">// FORESIGHT_MARKETS · TOP PREDICTORS</div>
             <h1 className="sec-title">Leader<span className="accent">board</span>.</h1>
             <p className="sec-sub">
-              Markets ranked by total pool size — the bigger the pool, the
-              louder the signal. Updates with every new prediction.
+              Ranking of users by wins and total predictions. Aggregated live
+              from on-chain bets across every Foresight market.
             </p>
           </div>
           <div className="sec-meta" style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
@@ -123,29 +136,26 @@ const App = () => {
 
         <div className="filter-row">
           <div className="chips">
-            {['ALL', 'CRYPTO', 'TECH', 'POLITICS', 'SPORTS', 'OTHER'].map(c => (
-              <span key={c}
-                    className={`fchip ${filter === c ? 'on' : ''} ${c !== 'ALL' ? c : ''}`}
-                    onClick={() => setFilter(c)}
-                    style={{ cursor: 'pointer' }}>
-                {c}
-              </span>
-            ))}
+            <span className="fchip on">ALL TIME</span>
           </div>
           <div className="chips">
-            <span className="fchip">SORT · POOL ↓</span>
+            <span className="fchip">SORT · WINS ↓</span>
           </div>
         </div>
 
-        {markets.length === 0 ? (
+        {loading ? (
           <div style={{ padding: '24px 0', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.15em' }}>
-            // SYNCING ON-CHAIN DATA...
+            // SYNCING ON-CHAIN PREDICTORS…
+          </div>
+        ) : list.length === 0 ? (
+          <div style={{ padding: '24px 0', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.15em' }}>
+            // NO PREDICTORS YET — BE THE FIRST TO PLACE A BET
           </div>
         ) : (
           <div className="lb-grid">
             <div className="lb-podium">
-              {podium.map((m, i) => (
-                <PodiumCard key={m.id} rank={i + 1} m={m} />
+              {podium.map((p, i) => (
+                <PodiumCard key={p.address} rank={i + 1} p={p} isYou={p.address === me} />
               ))}
             </div>
 
@@ -153,15 +163,15 @@ const App = () => {
               <div className="lb-table-wrap">
                 <div className="lb-table-head">
                   <span>#</span>
-                  <span>MARKET</span>
-                  <span>YES</span>
-                  <span>NO</span>
-                  <span>POOL</span>
-                  <span>CATEGORY</span>
-                  <span>STATUS</span>
+                  <span>PREDICTOR</span>
+                  <span>WINS</span>
+                  <span>LOSSES</span>
+                  <span>WIN_RATE</span>
+                  <span>TOTAL_BETS</span>
+                  <span>NET</span>
                 </div>
-                {rest.map((m, i) => (
-                  <TableRow key={m.id} rank={i + 4} m={m} />
+                {rest.map((p, i) => (
+                  <TableRow key={p.address} rank={i + 4} p={p} isYou={p.address === me} />
                 ))}
               </div>
             )}

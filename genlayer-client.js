@@ -326,6 +326,7 @@ async function loadSignalSummary() {
 async function loadMyPredictions(address) {
   try {
     const raw = await glCall(MARKETS_ADDR, 'get_my_predictions', [address]);
+    console.log('[GL] get_my_predictions raw response →', raw);
     return String(raw || '');
   } catch (e) {
     console.error('[GL] loadMyPredictions error:', e);
@@ -333,16 +334,87 @@ async function loadMyPredictions(address) {
   }
 }
 
+// Extract any ethereum addresses from arbitrary text
+function extractAddresses(text) {
+  if (!text) return [];
+  const matches = String(text).match(/0x[a-fA-F0-9]{40}/g) || [];
+  return [...new Set(matches.map(a => a.toLowerCase()))];
+}
+
+// Build a predictor leaderboard from on-chain data.
+// 1. Loads all markets, also logs the raw text of get_market(0) so we can see
+//    whether the contract response contains bettor addresses.
+// 2. Collects unique addresses found across all markets.
+// 3. For each address, fetches get_my_predictions and aggregates stats.
+// 4. Returns array sorted by wins desc, then total_bets desc.
+async function loadPredictorRanking() {
+  try {
+    const countRaw = await glCall(MARKETS_ADDR, 'get_market_count', []);
+    const count = parseInt(String(countRaw)) || 0;
+    if (count === 0) return [];
+
+    const ids = Array.from({ length: count }, (_, i) => String(i));
+    const raws = await Promise.all(ids.map(id => glCall(MARKETS_ADDR, 'get_market', [id])));
+
+    // Log first market raw so we can inspect what fields the contract returns
+    console.log('[GL] get_market(0) raw response →', raws[0]);
+
+    // Collect addresses from all markets
+    const addrs = new Set();
+    for (const r of raws) {
+      extractAddresses(r).forEach(a => addrs.add(a));
+    }
+    console.log('[GL] Unique bettor addresses found:', addrs.size);
+
+    if (addrs.size === 0) {
+      // Contract response does not include bettor addresses — caller falls back
+      return [];
+    }
+
+    const addrArr = [...addrs];
+    const predictionsRaws = await Promise.all(
+      addrArr.map(a => glCall(MARKETS_ADDR, 'get_my_predictions', [a]).catch(() => ''))
+    );
+
+    const ranking = addrArr.map((addr, i) => {
+      const preds = parseMyPredictions(predictionsRaws[i]);
+      const wins   = preds.filter(p => p.status === 'RESOLVED' && p.result && p.side === p.result).length;
+      const losses = preds.filter(p => p.status === 'RESOLVED' && p.result && p.side !== p.result).length;
+      const total  = preds.length;
+      const wr     = (wins + losses) > 0 ? Math.round((wins * 100) / (wins + losses)) : 0;
+      return {
+        address: addr,
+        totalBets: total,
+        wins,
+        losses,
+        winRate: wr,
+        pts: wins - losses,
+      };
+    });
+
+    ranking.sort((a, b) => b.wins - a.wins || b.totalBets - a.totalBets);
+    return ranking;
+  } catch (e) {
+    console.error('[GL] loadPredictorRanking error:', e);
+    return [];
+  }
+}
+
 function parseMyPredictions(raw) {
-  // Best-effort: split by newlines / pipe separators, extract { marketId, side, status, won }
+  // Best-effort: try multiple separators and patterns.
   if (!raw) return [];
-  const lines = String(raw).split(/\n|;/).map(l => l.trim()).filter(Boolean);
+  const text  = String(raw);
+  // Split by newlines, pipes-between-entries, or semicolons
+  const lines = text.split(/\n|;| \| (?=(?:Market|MKT|ID|#))/i)
+                    .map(l => l.trim())
+                    .filter(Boolean);
   const items = [];
   for (const line of lines) {
-    const mId  = (line.match(/(?:Market|MKT)[_# ]?(\d+)/i)        || [])[1];
-    const side = (line.match(/\b(YES|NO)\b/)                       || [])[1];
-    const stat = (line.match(/\b(OPEN|RESOLVED|EXPIRED|DISPUTED)\b/i) || [])[1];
-    const res  = (line.match(/(?:Result|Won)[: ]+(YES|NO|DISPUTED|true|false)/i) || [])[1];
+    // Market id: "Market 3", "MKT_0003", "#3", "ID: 3", or just bare digits
+    const mId  = (line.match(/(?:Market|MKT|ID|#)[_# :]*(\d+)/i) || line.match(/^(\d+)\b/) || [])[1];
+    const side = (line.match(/\b(YES|NO)\b/i)                                                  || [])[1];
+    const stat = (line.match(/\b(OPEN|RESOLVED|EXPIRED|DISPUTED|CLAIMED)\b/i)                  || [])[1];
+    const res  = (line.match(/(?:Result|Outcome|Winner|Won)[: ]+(YES|NO|DISPUTED|true|false)/i)|| [])[1];
     if (!mId || !side) continue;
     items.push({
       marketId: parseInt(mId),
@@ -419,7 +491,7 @@ window.__glSignalSummaryPromise = loadSignalSummary().catch(e => { console.error
 window.__glAPI = {
   // reads
   loadMarkets, loadMarketSummary, loadArticles, loadSignalSummary,
-  loadMyPredictions, parseMyPredictions,
+  loadMyPredictions, parseMyPredictions, loadPredictorRanking,
   // writes — markets
   generateMarket, placePrediction, resolveMarket, reResolveMarket,
   expireMarket, claimWinnings, claimRefund,

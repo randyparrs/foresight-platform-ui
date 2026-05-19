@@ -326,38 +326,40 @@ const NewsCard = ({ n }) => (
 );
 
 // =============================================================
-//  Ticker
+//  Ticker — only real on-chain markets, no mock
 // =============================================================
-const TICKER_ITEMS = [
-  { cat: "CRYPTO",   q: "ETH above $7K by 2027?",                       yes: 58 },
-  { cat: "POLITICS", q: "US passes AI safety bill in 2026?",            yes: 24 },
-  { cat: "TECH",     q: "OpenAI releases GPT-6 before September?",      yes: 41 },
-  { cat: "SPORTS",   q: "Verstappen wins F1 2026?",                     yes: 62 },
-  { cat: "CRYPTO",   q: "SOL surpasses $500 before Q4?",                yes: 33 },
-  { cat: "OTHER",    q: "SpaceX Starship reaches orbit twice in May?",  yes: 77 },
-  { cat: "TECH",     q: "Quantum computer cracks RSA-2048?",            yes: 4  },
-  { cat: "POLITICS", q: "EU bans foundation models above 10^26 FLOPs?", yes: 19 },
-];
-
 const Ticker = ({ liveMarkets }) => {
-  const items = (liveMarkets && liveMarkets.length > 0)
-    ? liveMarkets.map(m => ({ cat: m.category, q: m.question, yes: m.yes_pct }))
-    : TICKER_ITEMS;
-  const doubled = [...items, ...items];
+  const hasData = liveMarkets && liveMarkets.length > 0;
+  const items   = hasData ? liveMarkets.map(m => ({
+    cat: m.category, q: m.question, yes: m.yes_pct,
+  })) : [];
+  // Duplicate enough to fill the marquee even with few items
+  const doubled = hasData
+    ? (items.length >= 4 ? [...items, ...items] : [...items, ...items, ...items, ...items])
+    : [];
   return (
     <div className="ticker">
       <div className="ticker-label">LIVE MARKETS</div>
       <div className="ticker-track">
-        <div className="ticker-list">
-          {doubled.map((t, i) => (
-            <a key={i} href="Markets.html" className="ticker-item" style={{ textDecoration: "none", color: "inherit" }}>
-              <span className="cat">{t.cat}</span>
-              <span>{t.q}</span>
-              <span className={t.yes >= 50 ? "yes" : "no"}>{t.yes}% YES</span>
-              <span className="sep">·</span>
-            </a>
-          ))}
-        </div>
+        {hasData ? (
+          <div className="ticker-list">
+            {doubled.map((t, i) => (
+              <a key={i} href="Markets.html" className="ticker-item" style={{ textDecoration: "none", color: "inherit" }}>
+                <span className="cat">{t.cat}</span>
+                <span>{t.q}</span>
+                <span className={t.yes >= 50 ? "yes" : "no"}>{t.yes}% YES</span>
+                <span className="sep">·</span>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            padding: '14px 18px', color: 'var(--ink-3)',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 10.5, letterSpacing: '0.18em',
+          }}>
+            // SYNCING ON-CHAIN MARKETS…
+          </div>
+        )}
       </div>
     </div>
   );

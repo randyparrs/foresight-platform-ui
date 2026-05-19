@@ -4,9 +4,13 @@
 
 .home-shell {
   position: relative;
-  margin: 22px 0 0;
-  border: 1px solid var(--line-2);
-  border-radius: 12px;
+  /* Break out of .page max-width so the home extends edge-to-edge */
+  margin: 22px calc(50% - 50vw) 0;
+  width: 100vw;
+  border: none;
+  border-top:    1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+  border-radius: 0;
   overflow: hidden;
   isolation: isolate;
   background: #04060f;
@@ -933,7 +937,9 @@
    =========================================================== */
 .ticker {
   position: relative; z-index: 10;
-  margin: 18px 0 0;
+  /* Break out of .page max-width so the ticker spans edge to edge */
+  margin: 18px calc(50% - 50vw) 0;
+  width: 100vw;
   display: flex;
   border-top: 1px solid var(--line-2);
   border-bottom: 1px solid var(--line-2);

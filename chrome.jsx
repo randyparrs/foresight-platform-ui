@@ -42,13 +42,31 @@ const ProfilePanel = ({ account, onClose, onDisconnect }) => {
         return;
       }
       try {
-        const raw    = await window.__glAPI.loadMyPredictions(account);
-        const parsed = window.__glAPI.parseMyPredictions(raw);
+        // Load predictions + markets in parallel
+        const [raw, markets] = await Promise.all([
+          window.__glAPI.loadMyPredictions(account),
+          window.__glAPI.loadMarkets().catch(() => []),
+        ]);
+        const parsed = window.__glAPI.parseMyPredictions(raw) || [];
+
+        // Enrich each prediction with status/result/question from the live markets list
+        const enriched = parsed.map(p => {
+          const m = (markets || []).find(mm => mm.id === p.marketId);
+          if (!m) return p;
+          return {
+            ...p,
+            status:   m.status   || p.status,
+            result:   m.result   || p.result,
+            question: m.question || '',
+            category: m.category || '',
+          };
+        });
         if (!cancelled) {
-          setPredictions(parsed);
+          setPredictions(enriched);
           setLoading(false);
         }
       } catch (e) {
+        console.error('[ProfilePanel] load error:', e);
         if (!cancelled) { setPredictions([]); setLoading(false); }
       }
     };
@@ -56,19 +74,22 @@ const ProfilePanel = ({ account, onClose, onDisconnect }) => {
     return () => { cancelled = true; };
   }, [account]);
 
-  const open    = (predictions || []).filter(p => p.status === 'OPEN');
-  const history = (predictions || []).filter(p => p.status !== 'OPEN');
+  const list    = predictions || [];
+  const open    = list.filter(p => p.status === 'OPEN');
+  const history = list.filter(p => p.status !== 'OPEN');
 
   // Pending Rewards: bets in RESOLVED markets where user's side matches result
   const pending = history.filter(p =>
     p.status === 'RESOLVED' && p.result && p.side === p.result
   );
 
-  const totalBets = (predictions || []).length;
-  const wins      = pending.length + history.filter(p =>
-    p.status === 'RESOLVED' && p.result && p.side === p.result
+  const totalBets = list.length;
+  const wins      = pending.length;
+  const losses    = history.filter(p =>
+    p.status === 'RESOLVED' && p.result && p.side !== p.result
   ).length;
-  const pnl = wins;   // best-effort: 1 point per win
+  // 1 pt per bet, +1 pt per win (best-effort, real payout depends on pool ratio)
+  const pnl = wins - losses;
 
   const claim = async (marketId) => {
     setClaiming(marketId);
@@ -277,7 +298,7 @@ const Topbar = ({ active = "home" }) => {
           <span className="dot"></span>
           <span className="net">TESTNET</span>
           <span className="sep">·</span>
-          <span>STUDIO</span>
+          <span>STUDIONET</span>
         </div>
 
         {error && (
