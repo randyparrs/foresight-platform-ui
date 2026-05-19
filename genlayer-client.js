@@ -1,4 +1,6 @@
-// Foresight Platform — GenLayer Contract Client v3
+// Foresight Platform — GenLayer Contract Client v4
+import { createClient } from 'https://esm.sh/genlayer-js';
+import { studionet } from 'https://esm.sh/genlayer-js/chains';
 // Proper binary calldata encoding for gen_call JSON-RPC
 //
 // Encoding format (from genlayer-js source):
@@ -320,27 +322,23 @@ async function loadSignalSummary() {
   return parseSummary(raw);
 }
 
-// ── Write (transaction) ───────────────────────────────────────────────────────
-function buildWriteCalldata(method, args = []) {
-  const cd = glEncodeCalldata(method, args);
-  return '0x' + Array.from(cd).map(b => b.toString(16).padStart(2, '0')).join('');
+// ── Write via genlayer-js SDK (igual que Arena Tarder) ────────────────────────
+function _sdkClient() {
+  const account = window.__glAccount || sessionStorage.getItem('gl_account');
+  if (!account) throw new Error('Conecta tu wallet primero.');
+  if (!window.ethereum) throw new Error('No se detectó wallet.');
+  return createClient({
+    chain: studionet,
+    account,
+    transport: { custom: window.ethereum },
+  });
 }
 
-async function glWrite(address, method, args = []) {
-  if (!window.ethereum) throw new Error('Conecta tu wallet primero.');
-  if (!window.ethers)   throw new Error('ethers.js no cargado.');
-  const data = buildWriteCalldata(method, args);
-
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const signer   = await provider.getSigner();
-  const tx = await signer.sendTransaction({
-    to:       address,
-    data,
-    gasLimit: 1_000_000n,
-    gasPrice: 0n,
-  });
-  console.log(`[GL] WRITE ${method}(${args.map(String).join(',')}) → ${tx.hash}`);
-  return tx.hash;
+async function glWrite(address, functionName, args = []) {
+  const client = _sdkClient();
+  const txHash = await client.writeContract({ address, functionName, args });
+  console.log(`[GL] WRITE ${functionName}(${args.map(String).join(',')}) → ${txHash}`);
+  return txHash;
 }
 
 // ── Market writes ─────────────────────────────────────────────────────────────
