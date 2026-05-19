@@ -322,6 +322,39 @@ async function loadSignalSummary() {
   return parseSummary(raw);
 }
 
+// ── User data (best-effort parse of contract response) ────────────────────────
+async function loadMyPredictions(address) {
+  try {
+    const raw = await glCall(MARKETS_ADDR, 'get_my_predictions', [address]);
+    return String(raw || '');
+  } catch (e) {
+    console.error('[GL] loadMyPredictions error:', e);
+    return '';
+  }
+}
+
+function parseMyPredictions(raw) {
+  // Best-effort: split by newlines / pipe separators, extract { marketId, side, status, won }
+  if (!raw) return [];
+  const lines = String(raw).split(/\n|;/).map(l => l.trim()).filter(Boolean);
+  const items = [];
+  for (const line of lines) {
+    const mId  = (line.match(/(?:Market|MKT)[_# ]?(\d+)/i)        || [])[1];
+    const side = (line.match(/\b(YES|NO)\b/)                       || [])[1];
+    const stat = (line.match(/\b(OPEN|RESOLVED|EXPIRED|DISPUTED)\b/i) || [])[1];
+    const res  = (line.match(/(?:Result|Won)[: ]+(YES|NO|DISPUTED|true|false)/i) || [])[1];
+    if (!mId || !side) continue;
+    items.push({
+      marketId: parseInt(mId),
+      side:     side.toUpperCase(),
+      status:   (stat || 'OPEN').toUpperCase(),
+      result:   res ? res.toUpperCase() : '',
+      raw:      line,
+    });
+  }
+  return items;
+}
+
 // ── Write via genlayer-js SDK (igual que Arena Tarder) ────────────────────────
 function _sdkClient() {
   const account = window.__glAccount || sessionStorage.getItem('gl_account');
@@ -386,6 +419,7 @@ window.__glSignalSummaryPromise = loadSignalSummary().catch(e => { console.error
 window.__glAPI = {
   // reads
   loadMarkets, loadMarketSummary, loadArticles, loadSignalSummary,
+  loadMyPredictions, parseMyPredictions,
   // writes — markets
   generateMarket, placePrediction, resolveMarket, reResolveMarket,
   expireMarket, claimWinnings, claimRefund,

@@ -399,7 +399,7 @@ const AgentCallout = () => (
     <span className="agent-callout-cta">READ THE SIGNAL</span>
   </a>
 );
-const Hero = ({ totalMarkets, openMarkets, liveStats }) => (
+const Hero = ({ totalMarkets, openMarkets, totalBets, liveStats }) => (
   <div className="hero-wrap">
     <div>
       <div className="hero-eyebrow">
@@ -427,16 +427,16 @@ const Hero = ({ totalMarkets, openMarkets, liveStats }) => (
       </div>
       <div className="hero-stats">
         <div className="hero-stat">
-          <div className="num">{liveStats ? totalMarkets : "1,284"}</div>
+          <div className="num">{liveStats ? totalMarkets : "—"}</div>
           <div className="lbl">MARKETS · ALL TIME</div>
         </div>
         <div className="hero-stat">
-          <div className="num">{liveStats ? openMarkets : <span>2.4<em>M</em></span>}</div>
-          <div className="lbl">{liveStats ? "OPEN NOW" : "VOLUME · S01"}</div>
+          <div className="num">{liveStats ? openMarkets : "—"}</div>
+          <div className="lbl">OPEN NOW</div>
         </div>
         <div className="hero-stat">
-          <div className="num">8,<span className="vio">421</span></div>
-          <div className="lbl">PREDICTORS</div>
+          <div className="num">{liveStats ? totalBets : "—"}</div>
+          <div className="lbl">PREDICTIONS</div>
         </div>
       </div>
 
@@ -467,6 +467,7 @@ const App = () => {
   const [liveMarkets,  setLiveMarkets]  = useStateApp(null);
   const [totalMarkets, setTotalMarkets] = useStateApp('—');
   const [openMarkets,  setOpenMarkets]  = useStateApp('—');
+  const [totalBets,    setTotalBets]    = useStateApp('—');
 
   useEffectApp(() => {
     const applyMarkets = (data) => {
@@ -475,6 +476,8 @@ const App = () => {
       setTotalMarkets(String(data.length));
       const open = data.filter(m => m.status === 'OPEN').length;
       setOpenMarkets(String(open));
+      const bets = data.reduce((s, m) => s + (m.yes_pool || 0) + (m.no_pool || 0), 0);
+      setTotalBets(bets >= 1000 ? (bets / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(bets));
       const cards = data.slice(0, 4).map(m => ({
         id:     m.id,
         cat:    m.category,
@@ -531,13 +534,16 @@ const App = () => {
     <div className="page" style={{ paddingBottom: 32 }}>
       <Topbar active="home" />
 
+      {/* Ticker moved to top — below topbar, above hero */}
+      <Ticker liveMarkets={liveMarkets} />
+
       <div className="home-shell">
         {/* BG layers */}
         <div className="layer layer-base"></div>
         {Bg}
         <div className="layer layer-grain"></div>
 
-        <Hero totalMarkets={totalMarkets} openMarkets={openMarkets} liveStats={live} />
+        <Hero totalMarkets={totalMarkets} openMarkets={openMarkets} totalBets={totalBets} liveStats={live} />
 
         <div className="section-hr"></div>
 
@@ -579,8 +585,6 @@ const App = () => {
             {news.map((n, i) => <NewsCard key={i} n={n} />)}
           </div>
         </div>
-
-        <Ticker liveMarkets={liveMarkets} />
       </div>
 
       <FooterStrip />

@@ -485,6 +485,9 @@
 .cta .arrow { transition: transform 200ms ease; }
 .cta:hover .arrow { transform: translateX(3px); }
 
+.hero-stat {
+  text-align: center;
+}
 .hero-stat .num {
   font-family: "Space Grotesk", sans-serif;
   font-size: 28px;
@@ -960,7 +963,7 @@
   display: inline-flex;
   gap: 36px;
   padding: 0 24px;
-  animation: ticker-roll 50s linear infinite;
+  animation: ticker-roll 120s linear infinite;
 }
 @keyframes ticker-roll {
   from { transform: translateX(0); }

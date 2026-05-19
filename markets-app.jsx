@@ -203,76 +203,6 @@ const btnStyle = (color) => ({
   letterSpacing: '0.06em',
 });
 
-// ── Generate Market panel ─────────────────────────────────────────────────────
-const GeneratePanel = ({ onRefresh }) => {
-  const [url,   setUrl]   = useState('');
-  const [terms, setTerms] = useState('');
-  const [busy,  setBusy]  = useState(false);
-  const [tx,    setTx]    = useState(null);
-
-  const inputStyle = {
-    flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 3,
-    background: 'var(--surface-2)', color: 'var(--ink-0)',
-    border: '1px solid var(--line-2)',
-    fontFamily: 'JetBrains Mono, monospace', fontSize: 12,
-  };
-
-  const submit = async () => {
-    if (!url.trim() || !terms.trim()) return;
-    setBusy(true);
-    setTx(null);
-    try {
-      const hash = await window.__glAPI.generateMarket(url.trim(), terms.trim());
-      setTx(hash);
-      setUrl('');
-      setTerms('');
-      setTimeout(() => onRefresh && onRefresh(), 6000);
-    } catch (e) {
-      setTx('ERR:' + (e.message || String(e)));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div style={{
-      padding: '16px 20px', borderRadius: 4,
-      border: '1px solid var(--vio)',
-      background: 'rgba(138,124,255,0.05)',
-      marginBottom: 24,
-    }}>
-      <div style={{
-        fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-        color: 'var(--vio)', letterSpacing: '0.15em', marginBottom: 10,
-      }}>
-        // GENERATE_MARKET · AI AUTHORING FROM URL
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-        <input type="url" value={url} onChange={e => setUrl(e.target.value)}
-          placeholder="https://news-source.com/article-url"
-          disabled={busy} style={{ ...inputStyle, flex: 2 }} />
-        <input type="text" value={terms} onChange={e => setTerms(e.target.value)}
-          placeholder="search terms (ej: bitcoin price)"
-          disabled={busy} onKeyDown={e => e.key === 'Enter' && submit()}
-          style={{ ...inputStyle, flex: 1 }} />
-        <button onClick={submit} disabled={busy || !url.trim() || !terms.trim()}
-          style={{
-            padding: '8px 18px', borderRadius: 3,
-            background: busy ? 'transparent' : 'var(--vio)',
-            color: busy ? 'var(--vio)' : '#fff',
-            border: '1px solid var(--vio)',
-            cursor: busy || !url.trim() || !terms.trim() ? 'not-allowed' : 'pointer',
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700,
-          }}
-        >
-          {busy ? 'SUBMITTING…' : '+ GENERATE'}
-        </button>
-      </div>
-      <TxStatus tx={tx} />
-    </div>
-  );
-};
-
 // ── App ───────────────────────────────────────────────────────────────────────
 const App = () => {
   const [markets, setMarkets] = useState([]);
@@ -359,9 +289,6 @@ const App = () => {
               </div>
             </div>
           </div>
-
-          {/* Generate market panel */}
-          <GeneratePanel onRefresh={fetchMarkets} />
 
           {loading && (
             <div style={{ padding: '24px 0', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.15em' }}>
