@@ -213,13 +213,22 @@ const App = () => {
   const fetchMarkets = useCallback(() => {
     if (!window.__glAPI) return;
     window.__glAPI.loadMarkets().then(data => {
-      if (data && data.length > 0) { setMarkets(data); setLive(true); }
+      if (data && data.length > 0) {
+        const filtered = data.filter(m => m.id !== 0);
+        setMarkets(filtered);
+        setLive(true);
+      }
     }).catch(console.error);
   }, []);
 
   useEffect(() => {
     const applyMarkets = (data) => {
-      if (data && data.length > 0) { setMarkets(data); setLive(true); }
+      if (data && data.length > 0) {
+        // Hide the legacy test market (MKT_0000) created at contract deployment
+        const filtered = data.filter(m => m.id !== 0);
+        setMarkets(filtered);
+        setLive(true);
+      }
       setLoading(false);
     };
 

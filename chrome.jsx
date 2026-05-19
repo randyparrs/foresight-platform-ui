@@ -360,14 +360,14 @@ const FooterStrip = () => (
     <div className="foot-col">
       <h5>Developers</h5>
       <a href="Docs.html">Docs</a>
-      <a href="https://github.com/randyparrs/foresight-platform" target="_blank">Contract</a>
-      <a href="https://github.com/randyparrs/foresight-platform-ui" target="_blank">GitHub</a>
+      <a href="https://github.com/randyparrs/foresight-platform" target="_blank" rel="noopener noreferrer">Contract</a>
+      <a href="https://github.com/randyparrs/foresight-platform" target="_blank" rel="noopener noreferrer">GitHub</a>
     </div>
     <div className="foot-col">
       <h5>Community</h5>
-      <a href="#">Discord</a>
-      <a href="#">Twitter / X</a>
-      <a href="#">Telegram</a>
+      <a href="https://discord.gg/8Jm4v89VAu" target="_blank" rel="noopener noreferrer">Discord</a>
+      <a href="https://x.com/genlayer" target="_blank" rel="noopener noreferrer">Twitter / X</a>
+      <span className="foot-text">Telegram</span>
     </div>
     <div className="foot-bottom">
       <span>© 2026 <span className="acc">FORESIGHT</span> // BUILT ON <span className="vio">GENLAYER</span></span>

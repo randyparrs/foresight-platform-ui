@@ -4,32 +4,12 @@
 //  THE SIGNAL — AI journalist publication
 //  Reads from The Signal intelligent contract on GenLayer.
 //  Contract: 0xCb20df465C11BcB67e87b68A5B936453340c9d01
+//  Writes (publish_article) are done by the off-chain bot.
 // =============================================================
 
-// ── Mock fallback ─────────────────────────────────────────────────────────────
-const FEATURE_MOCK = {
-  id: 142,
-  category: "CRYPTO",
-  sentiment: "BULLISH",
-  title: "Bitcoin breaches $138,000 as spot ETFs absorb record weekly inflows",
-  headline: "A surge in institutional flows and a softer-than-expected core PCE print sent BTC to fresh highs, with desks reporting thin sell-side liquidity through the weekend.",
-  body: "Bitcoin punched through $138K on Friday after spot ETFs reported $4.2B in net inflows over the trailing five sessions — the largest weekly haul on record. Desks at major venues described the move as a momentum break against thin orderbooks, with sellers concentrated above $142K.\n\nThe rally coincided with a cooler-than-expected core PCE print, reviving expectations of a July rate cut and pulling DXY 0.6% lower. Risk assets followed: SOL closed +9.4%, ETH +6.1%, and the broader CoinShares CMI rose 7.8% on the week.\n\nForesight markets repriced the YES side of \"BTC closes above $150K by Dec 31\" from 54% to 68% on the news, with $12.4K in fresh stakes in the first hour after publication.",
-  tags: ["btc", "etf-flows", "fed-pivot", "ltf-breakout"],
-  sources: ["bloomberg.com/news/articles/2026-05-12/bitcoin-etf-flows", "ft.com/content/btc-138k-rally", "coindesk.com/markets/2026/05/12/etf-inflows"],
-  block: 184312,
-  publishedAt: "2026.05.12 · 14:32 UTC",
-};
+const { useState, useEffect, useCallback } = React;
 
-const ARTICLES_MOCK = [
-  { id: 141, category: "POLITICS", sentiment: "POSITIVE",  title: "Powell hints at July cut as core PCE cools to 2.4%",           headline: "The Fed chair stopped short of committing to action but bond markets quickly priced in a 71% chance of a July move.", tags: ["fed","rates","fomc"],  sources: 3, block: 184298, publishedAt: "2h ago" },
-  { id: 140, category: "TECH",     sentiment: "NEGATIVE",  title: "Apple delays Vision-class glasses to 2027, supply chain sources say", headline: "Two component partners confirmed an internal slip; Cupertino has yet to publicly acknowledge the change.", tags: ["aapl","ar","vision"], sources: 2, block: 184277, publishedAt: "6h ago" },
-  { id: 139, category: "MARKETS",  sentiment: "NEUTRAL",   title: "S&P 500 closes at 6,420 after late-day chop on Powell speech",  headline: "Tech outperformed but breadth deteriorated, with the equal-weight index lagging the cap-weighted close by 38 bps.", tags: ["spx","equities","breadth"], sources: 4, block: 184251, publishedAt: "9h ago" },
-  { id: 138, category: "SPORTS",   sentiment: "POSITIVE",  title: "Real Madrid edge Bayern 3-1 on aggregate to reach UCL final",   headline: "Vinicius and Bellingham combined for two first-half goals at the Bernabéu; Foresight YES on Real wins UCL jumped to 54%.", tags: ["ucl","rmadrid","bayern"], sources: 2, block: 184240, publishedAt: "12h ago" },
-  { id: 137, category: "CRYPTO",   sentiment: "BEARISH",   title: "Ethereum L2 gas spike triggers brief 9% slide before recovery", headline: "An attempted mass-mint on Base congested the network; ETH retraced to $4,180 before bouncing into the close.", tags: ["eth","l2","base"], sources: 3, block: 184215, publishedAt: "14h ago" },
-  { id: 136, category: "TECH",     sentiment: "POSITIVE",  title: "OpenAI ships GPT-6 preview API for enterprise, public release in July", headline: "The new model adds a 2M-token context window and native tool calling; pricing matches GPT-4o at launch.", tags: ["openai","gpt-6","api"], sources: 3, block: 184198, publishedAt: "18h ago" },
-];
-
-// ── Components ────────────────────────────────────────────────────────────────
+// ── Avatar / agent hero ───────────────────────────────────────────────────────
 const SignalAgentAvatar = () => (
   <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
     <defs>
@@ -85,7 +65,7 @@ const SignalAgentHero = ({ totalArticles, live }) => (
   <div className="signal-agent">
     <div className="agent-avatar"><SignalAgentAvatar /></div>
     <div className="agent-info">
-      <div className="agent-status">● {live ? "BROADCASTING · ON-CHAIN" : "BROADCASTING · DEMO"}</div>
+      <div className="agent-status">● {live ? "BROADCASTING · ON-CHAIN" : "SYNCING · STUDIONET"}</div>
       <h3>Meet <span className="accent">SIG-01</span>, your on-chain journalist.</h3>
       <div className="agent-byline">AGENT_ID 0xCb20…9d01 · DEPLOYED 2026 · FORESIGHT/THESIGNAL.V1</div>
       <p className="agent-bio">
@@ -109,24 +89,24 @@ const SignalAgentHero = ({ totalArticles, live }) => (
       </div>
       <div className="agent-stat">
         <div className="lbl">NETWORK</div>
-        <div className="val"><span className="acc">STUDIO</span></div>
+        <div className="val"><span className="acc">STUDIONET</span></div>
       </div>
     </div>
   </div>
 );
 
 const Source = ({ url }) => {
-  const domain = url.replace(/^https?:\/\//, '').split('/')[0];
+  const domain = String(url || '').replace(/^https?:\/\//, '').split('/')[0];
   return (
     <div className="signal-source">
-      <span className="signal-source-mark">{domain[0].toUpperCase()}</span>
-      <span className="signal-source-url">{url.length > 50 ? url.slice(0, 50) + '…' : url}</span>
+      <span className="signal-source-mark">{(domain[0] || '?').toUpperCase()}</span>
+      <span className="signal-source-url">{url && url.length > 50 ? url.slice(0, 50) + '…' : url}</span>
     </div>
   );
 };
 
 const ArticleBody = ({ body }) => {
-  const paras = body.split(/\n+/).filter(Boolean);
+  const paras = String(body || '').split(/\n+/).filter(Boolean);
   return (
     <div className="signal-hero-body">
       {paras.length > 1
@@ -137,8 +117,8 @@ const ArticleBody = ({ body }) => {
   );
 };
 
-const ArticleCard = ({ a }) => (
-  <div className="signal-card">
+const ArticleCard = ({ a, onSelect }) => (
+  <div className="signal-card" onClick={onSelect} style={{ cursor: 'pointer' }}>
     <div className="top">
       <span className={`cat-tag ${a.category}`}>{a.category}</span>
       <span className={`sentiment ${a.sentiment}`}>{a.sentiment}</span>
@@ -150,158 +130,27 @@ const ArticleCard = ({ a }) => (
     </div>
     <div className="article-meta">
       <span>ART_{String(a.id).padStart(4, "0")} · <b>BLK {(a.block || 0).toLocaleString()}</b></span>
-      <span>{Array.isArray(a.sources) ? a.sources.length : (a.sources || 0)} SRC · {a.publishedAt || ""}</span>
+      <span>{Array.isArray(a.sources) ? a.sources.length : (a.sources || 0)} SRC</span>
     </div>
   </div>
 );
 
-// ── Publish Article panel ─────────────────────────────────────────────────────
-const TxStatus = ({ tx }) => {
-  if (!tx) return null;
-  const isErr = tx.startsWith('ERR:');
-  return (
-    <div style={{
-      marginTop: 8, padding: '6px 10px', borderRadius: 3,
-      fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
-      letterSpacing: '0.05em', wordBreak: 'break-all',
-      background: isErr ? 'rgba(255,80,80,0.08)' : 'rgba(76,232,110,0.08)',
-      color: isErr ? 'var(--bear)' : 'var(--yes)',
-      border: `1px solid ${isErr ? 'var(--bear)' : 'var(--yes)'}`,
-    }}>
-      {isErr ? '✕ ' + tx.slice(4) : '✓ TX: ' + tx.slice(0, 20) + '…'}
-    </div>
-  );
-};
-
-const SIGNAL_CATS = ['CRYPTO', 'MARKETS', 'TECH', 'POLITICS', 'SPORTS', 'OTHER'];
-
-const PublishPanel = ({ onRefresh }) => {
-  const [category, setCategory] = useState('CRYPTO');
-  const [url1, setUrl1]         = useState('');
-  const [url2, setUrl2]         = useState('');
-  const [url3, setUrl3]         = useState('');
-  const [busy, setBusy]         = useState(false);
-  const [tx,   setTx]           = useState(null);
-
-  const submit = async () => {
-    if (!url1.trim()) return;
-    setBusy(true);
-    setTx(null);
-    try {
-      const hash = await window.__glAPI.publishArticle(
-        category,
-        url1.trim(),
-        url2.trim() || url1.trim(),
-        url3.trim() || url1.trim(),
-      );
-      setTx(hash);
-      setUrl1(''); setUrl2(''); setUrl3('');
-      setTimeout(() => onRefresh && onRefresh(), 4000);
-    } catch (e) {
-      setTx('ERR:' + (e.message || String(e)));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const inputStyle = {
-    width: '100%', padding: '7px 11px', borderRadius: 3,
-    background: 'var(--surface-2)', color: 'var(--ink-0)',
-    border: '1px solid var(--line-2)',
-    fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-    boxSizing: 'border-box',
-  };
-
-  return (
-    <div style={{
-      padding: '16px 20px', borderRadius: 4,
-      border: '1px solid var(--acc)',
-      background: 'rgba(76,232,230,0.04)',
-      marginBottom: 24,
-    }}>
-      <div style={{
-        fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-        color: 'var(--acc)', letterSpacing: '0.15em', marginBottom: 12,
-      }}>
-        // PUBLISH_ARTICLE · SUBMIT TO SIG-01 AI JOURNALIST
-      </div>
-
-      {/* Category selector */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {SIGNAL_CATS.map(c => (
-          <button key={c} onClick={() => setCategory(c)}
-            style={{
-              padding: '4px 10px', borderRadius: 3, cursor: 'pointer',
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.1em',
-              background: category === c ? 'var(--acc)' : 'transparent',
-              color: category === c ? '#000' : 'var(--acc)',
-              border: '1px solid var(--acc)',
-            }}
-          >{c}</button>
-        ))}
-      </div>
-
-      {/* URL inputs */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-        <input type="url" value={url1} onChange={e => setUrl1(e.target.value)}
-          placeholder="Source URL 1 (required)" disabled={busy} style={inputStyle} />
-        <input type="url" value={url2} onChange={e => setUrl2(e.target.value)}
-          placeholder="Source URL 2 (optional)" disabled={busy} style={inputStyle} />
-        <input type="url" value={url3} onChange={e => setUrl3(e.target.value)}
-          placeholder="Source URL 3 (optional)" disabled={busy} style={inputStyle} />
-      </div>
-
-      <button
-        onClick={submit}
-        disabled={busy || !url1.trim()}
-        style={{
-          padding: '8px 20px', borderRadius: 3,
-          background: busy ? 'transparent' : 'var(--acc)',
-          color: busy ? 'var(--acc)' : '#000',
-          border: '1px solid var(--acc)',
-          cursor: busy || !url1.trim() ? 'not-allowed' : 'pointer',
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700,
-          letterSpacing: '0.1em',
-        }}
-      >
-        {busy ? 'PUBLISHING…' : '⬆ PUBLISH ARTICLE'}
-      </button>
-
-      <TxStatus tx={tx} />
-    </div>
-  );
-};
-
 // ── App ───────────────────────────────────────────────────────────────────────
-const { useState, useEffect, useCallback } = React;
-
 const App = () => {
-  const [feature, setFeature]       = useState(FEATURE_MOCK);
-  const [articles, setArticles]     = useState(ARTICLES_MOCK);
-  const [summary, setSummary]       = useState({ crypto: 312, markets: 218, tech: 174, politics: 164, sports: 312, other: 104 });
-  const [totalArticles, setTotal]   = useState('1,284');
+  const [articles, setArticles]     = useState([]);
+  const [activeIdx, setActiveIdx]   = useState(0);
+  const [summary, setSummary]       = useState({ crypto: 0, markets: 0, tech: 0, politics: 0, sports: 0, other: 0 });
+  const [totalArticles, setTotal]   = useState('—');
   const [live, setLive]             = useState(false);
   const [loading, setLoading]       = useState(true);
-
-  const fetchArticles = useCallback(() => {
-    if (!window.__glAPI) return;
-    window.__glAPI.loadArticles(20).then(data => {
-      if (data && data.length > 0) {
-        setFeature(data[0]);
-        setArticles(data.slice(1));
-        setTotal(String(data.length));
-        setLive(true);
-      }
-    }).catch(console.error);
-  }, []);
 
   useEffect(() => {
     const applyArticles = (data) => {
       if (data && data.length > 0) {
-        setFeature(data[0]);
-        setArticles(data.slice(1));
-        setTotal(String(data.length));
+        // Hide the legacy/demo article(s) from the contract deploy.
+        // Articles are returned latest-first; we keep that order.
+        setArticles(data);
+        setActiveIdx(0);
         setLive(true);
       }
       setLoading(false);
@@ -311,7 +160,7 @@ const App = () => {
       if (!s) return;
       const total = parseInt(s['Total Articles'] || '0');
       if (total > 0) {
-        setTotal(total.toLocaleString());
+        setTotal(String(total));
         setSummary({
           crypto:   parseInt(s['CRYPTO']   || '0'),
           markets:  parseInt(s['MARKETS']  || '0'),
@@ -342,9 +191,19 @@ const App = () => {
     return () => document.removeEventListener('glReady', run);
   }, []);
 
-  const feed = articles.slice(0, 6).map(a => ({
+  const feature = articles[activeIdx] || null;
+  const others  = articles.filter((_, i) => i !== activeIdx);
+  const feed    = others.slice(0, 6).map(a => ({
     block: a.block, category: a.category, title: a.title,
   }));
+
+  const selectArticle = (id) => {
+    const idx = articles.findIndex(a => a.id === id);
+    if (idx >= 0) {
+      setActiveIdx(idx);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="page" style={{ paddingBottom: 32 }}>
@@ -354,7 +213,7 @@ const App = () => {
         <div className="inner-body">
           <div className="sec-header">
             <div>
-              <div className="sec-eyebrow">// THE SIGNAL · AI JOURNALIST · {live ? "ON-CHAIN" : "DEMO"}</div>
+              <div className="sec-eyebrow">// THE SIGNAL · AI JOURNALIST · {live ? "ON-CHAIN" : "SYNCING"}</div>
               <h1 className="sec-title">The <span className="accent">Signal</span>.</h1>
               <p className="sec-sub">
                 An AI journalist that writes every article on-chain. Each story is sourced from
@@ -367,9 +226,6 @@ const App = () => {
               <span>ARTICLES · {live ? "LIVE ON-CHAIN" : "UPDATED EVERY BLOCK"}</span>
             </div>
           </div>
-
-          {/* Publish article panel */}
-          <PublishPanel onRefresh={fetchArticles} />
 
           <SignalAgentHero totalArticles={totalArticles} live={live} />
 
@@ -399,87 +255,92 @@ const App = () => {
             </div>
           )}
 
-          <div className="signal-layout">
-            {/* Main column */}
-            <div>
-              {/* Featured article */}
-              <article className="signal-hero">
-                <div>
-                  <div className="signal-hero-head">
-                    <span className={`cat-tag ${feature.category}`}>{feature.category}</span>
-                    <span className={`sentiment ${feature.sentiment}`}>{feature.sentiment}</span>
-                    <span>ART_{String(feature.id).padStart(4, "0")}</span>
-                    <span>·</span>
-                    <span>{feature.publishedAt || `BLK ${(feature.block || 0).toLocaleString()}`}</span>
-                  </div>
-                  <h2 className="signal-hero-title">{feature.title}</h2>
-                  <p className="signal-hero-headline">{feature.headline}</p>
-                  <ArticleBody body={feature.body || ''} />
-                  <div className="signal-hero-tags">
-                    {(feature.tags || []).map((t) => <span key={t} className="signal-tag">#{t}</span>)}
-                  </div>
-                </div>
-                <aside className="signal-hero-side">
-                  <h6>SOURCES · {Array.isArray(feature.sources) ? feature.sources.length : 0}</h6>
-                  {Array.isArray(feature.sources) && feature.sources.map((s, i) => (
-                    <Source key={i} url={s} />
-                  ))}
-                  <div className="signal-block">
-                    <span>BLOCK</span>
-                    <span><b>{(feature.block || 0).toLocaleString()}</b></span>
-                  </div>
-                  <div className="signal-block">
-                    <span>VALIDATORS</span>
-                    <span><b>3 / 3</b> AGREED</span>
-                  </div>
-                  {live && (
-                    <div className="signal-block" style={{ marginTop: 8 }}>
-                      <span>CONTRACT</span>
-                      <span style={{ color: "var(--acc)", fontSize: 9 }}>0xCb20…9d01</span>
-                    </div>
-                  )}
-                </aside>
-              </article>
-
-              <div className="signal-grid">
-                {articles.map((a) => <ArticleCard key={a.id} a={a} />)}
-              </div>
+          {!loading && !feature && (
+            <div style={{ padding: "32px 0", color: "var(--ink-3)", fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: "0.15em" }}>
+              // NO ARTICLES PUBLISHED YET
             </div>
+          )}
 
-            {/* Side rail */}
-            <aside className="signal-rail">
-              <div className="signal-stat">
-                <div className="lbl">PUBLISHED · TOTAL</div>
-                <div className="val"><em>{totalArticles}</em></div>
-                <div className="delta">{live ? "● LIVE ON-CHAIN" : "● DEMO MODE"}</div>
-              </div>
-
-              <div className="signal-sentiment-bar">
-                <h6>SENTIMENT · BREAKDOWN</h6>
-                <div className="bar">
-                  <div className="b1" style={{ width: "44%" }}></div>
-                  <div className="b2" style={{ width: "32%" }}></div>
-                  <div className="b3" style={{ width: "24%" }}></div>
-                </div>
-                <div className="legend">
-                  <div><b className="v1">44%</b><span>BULL+POS</span></div>
-                  <div><b className="v2">32%</b><span>NEUTRAL</span></div>
-                  <div><b className="v3">24%</b><span>BEAR+NEG</span></div>
-                </div>
-              </div>
-
-              <div className="signal-feed">
-                <h6>RECENT BLOCKS</h6>
-                {feed.map((f, i) => (
-                  <div key={i} className="signal-feed-item">
-                    <span className="blk">{f.block}</span>
-                    <span className="ttl">{f.title && f.title.length > 56 ? f.title.slice(0, 56) + "…" : f.title}</span>
-                    <span className={`cat-mini ${f.category}`}>{f.category}</span>
+          {feature && (
+            <div className="signal-layout">
+              {/* Main column */}
+              <div>
+                {/* Featured article */}
+                <article className="signal-hero">
+                  <div>
+                    <div className="signal-hero-head">
+                      <span className={`cat-tag ${feature.category}`}>{feature.category}</span>
+                      <span className={`sentiment ${feature.sentiment}`}>{feature.sentiment}</span>
+                      <span>ART_{String(feature.id).padStart(4, "0")}</span>
+                      <span>·</span>
+                      <span>BLK {(feature.block || 0).toLocaleString()}</span>
+                    </div>
+                    <h2 className="signal-hero-title">{feature.title}</h2>
+                    <p className="signal-hero-headline">{feature.headline}</p>
+                    <ArticleBody body={feature.body || ''} />
+                    <div className="signal-hero-tags">
+                      {(feature.tags || []).map((t) => <span key={t} className="signal-tag">#{t}</span>)}
+                    </div>
                   </div>
-                ))}
+                  <aside className="signal-hero-side">
+                    <h6>SOURCES · {Array.isArray(feature.sources) ? feature.sources.length : 0}</h6>
+                    {Array.isArray(feature.sources) && feature.sources.map((s, i) => (
+                      <Source key={i} url={s} />
+                    ))}
+                    <div className="signal-block">
+                      <span>BLOCK</span>
+                      <span><b>{(feature.block || 0).toLocaleString()}</b></span>
+                    </div>
+                    <div className="signal-block">
+                      <span>VALIDATORS</span>
+                      <span><b>3 / 3</b> AGREED</span>
+                    </div>
+                    {live && (
+                      <div className="signal-block" style={{ marginTop: 8 }}>
+                        <span>CONTRACT</span>
+                        <span style={{ color: "var(--acc)", fontSize: 9 }}>0xCb20…9d01</span>
+                      </div>
+                    )}
+                  </aside>
+                </article>
+
+                <div className="signal-grid">
+                  {others.map((a) => (
+                    <ArticleCard key={a.id} a={a} onSelect={() => selectArticle(a.id)} />
+                  ))}
+                </div>
               </div>
-            </aside>
-          </div>
+
+              {/* Side rail */}
+              <aside className="signal-rail">
+                <div className="signal-stat">
+                  <div className="lbl">PUBLISHED · TOTAL</div>
+                  <div className="val"><em>{totalArticles}</em></div>
+                  <div className="delta">{live ? "● LIVE ON-CHAIN" : "● SYNCING"}</div>
+                </div>
+
+                <div className="signal-feed">
+                  <h6>RECENT BLOCKS</h6>
+                  {feed.length === 0 ? (
+                    <div style={{ padding: 12, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 10 }}>
+                      // no other articles yet
+                    </div>
+                  ) : feed.map((f, i) => {
+                    const art = others[i];
+                    return (
+                      <div key={i} className="signal-feed-item"
+                           onClick={() => art && selectArticle(art.id)}
+                           style={{ cursor: 'pointer' }}>
+                        <span className="blk">{f.block}</span>
+                        <span className="ttl">{f.title && f.title.length > 56 ? f.title.slice(0, 56) + "…" : f.title}</span>
+                        <span className={`cat-mini ${f.category}`}>{f.category}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </aside>
+            </div>
+          )}
         </div>
       </div>
 

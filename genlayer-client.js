@@ -401,27 +401,23 @@ async function loadPredictorRanking() {
 }
 
 function parseMyPredictions(raw) {
-  // Best-effort: try multiple separators and patterns.
+  // Contract format observed:
+  //   "User has N prediction(s): M0=YES(1pts) | M2=NO(1pts) | M3=YES(1pts) | ..."
+  // Each entry: M{id}={YES|NO}({n}pts). Status & result are filled in by the
+  // caller via the markets list (this string doesn't carry that info).
   if (!raw) return [];
-  const text  = String(raw);
-  // Split by newlines, pipes-between-entries, or semicolons
-  const lines = text.split(/\n|;| \| (?=(?:Market|MKT|ID|#))/i)
-                    .map(l => l.trim())
-                    .filter(Boolean);
+  const text = String(raw);
   const items = [];
-  for (const line of lines) {
-    // Market id: "Market 3", "MKT_0003", "#3", "ID: 3", or just bare digits
-    const mId  = (line.match(/(?:Market|MKT|ID|#)[_# :]*(\d+)/i) || line.match(/^(\d+)\b/) || [])[1];
-    const side = (line.match(/\b(YES|NO)\b/i)                                                  || [])[1];
-    const stat = (line.match(/\b(OPEN|RESOLVED|EXPIRED|DISPUTED|CLAIMED)\b/i)                  || [])[1];
-    const res  = (line.match(/(?:Result|Outcome|Winner|Won)[: ]+(YES|NO|DISPUTED|true|false)/i)|| [])[1];
-    if (!mId || !side) continue;
+  const re = /M(\d+)=(YES|NO)\((\d+)\s*pts?\)/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) {
     items.push({
-      marketId: parseInt(mId),
-      side:     side.toUpperCase(),
-      status:   (stat || 'OPEN').toUpperCase(),
-      result:   res ? res.toUpperCase() : '',
-      raw:      line,
+      marketId: parseInt(m[1], 10),
+      side:     m[2].toUpperCase(),
+      stake:    parseInt(m[3], 10),
+      status:   'OPEN',  // overwritten by caller after joining with markets
+      result:   '',
+      raw:      m[0],
     });
   }
   return items;

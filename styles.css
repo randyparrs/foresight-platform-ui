@@ -43,8 +43,6 @@ html, body {
 .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
 
 .page {
-  max-width: 1480px;
-  margin: 0 auto;
   padding: 24px 32px 40px;
 }
 
@@ -280,6 +278,14 @@ html, body {
   cursor: pointer;
 }
 .foot-col a:hover { color: var(--ink-0); }
+.foot-col .foot-text {
+  display: block;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--ink-3);
+  letter-spacing: -0.005em;
+  cursor: default;
+}
 .foot-brand {
   font-family: "Space Grotesk", sans-serif;
   font-weight: 700;

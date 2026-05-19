@@ -66,24 +66,24 @@ const App = () => {
         setStats(prev => ({ ...prev, totalArticles: s['Total Articles'] || '—' }));
       });
 
-      // Predictor ranking
+      // Predictor ranking — load connected wallet's data joined with markets
       try {
-        const data = await (window.__glAPI && window.__glAPI.loadPredictorRanking
-                            ? window.__glAPI.loadPredictorRanking()
-                            : []);
-
-        // If empty (contract response did not include bettor addresses),
-        // fall back to the connected wallet's row if available
-        if ((!data || data.length === 0) && window.__glAccount && window.__glAPI.loadMyPredictions) {
-          const myRaw   = await window.__glAPI.loadMyPredictions(window.__glAccount);
-          const myPreds = window.__glAPI.parseMyPredictions(myRaw);
+        if (window.__glAccount && window.__glAPI && window.__glAPI.loadMyPredictions) {
+          const [myRaw, markets] = await Promise.all([
+            window.__glAPI.loadMyPredictions(window.__glAccount),
+            window.__glAPI.loadMarkets().catch(() => []),
+          ]);
+          const myPreds = (window.__glAPI.parseMyPredictions(myRaw) || []).map(p => {
+            const m = (markets || []).find(mm => mm.id === p.marketId);
+            return m ? { ...p, status: m.status, result: m.result } : p;
+          });
           const wins    = myPreds.filter(p => p.status === 'RESOLVED' && p.result && p.side === p.result).length;
           const losses  = myPreds.filter(p => p.status === 'RESOLVED' && p.result && p.side !== p.result).length;
           const total   = myPreds.length;
           const wr      = (wins + losses) > 0 ? Math.round((wins * 100) / (wins + losses)) : 0;
           setRanking([{ address: window.__glAccount.toLowerCase(), totalBets: total, wins, losses, winRate: wr, pts: wins - losses }]);
         } else {
-          setRanking(data);
+          setRanking([]);
         }
       } catch (e) {
         console.error('[Leaderboard] error:', e);
@@ -149,7 +149,7 @@ const App = () => {
           </div>
         ) : list.length === 0 ? (
           <div style={{ padding: '24px 0', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.15em' }}>
-            // NO PREDICTORS YET — BE THE FIRST TO PLACE A BET
+            // CONNECT YOUR WALLET TO SEE YOUR PREDICTOR STATS
           </div>
         ) : (
           <div className="lb-grid">

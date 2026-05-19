@@ -4,7 +4,8 @@
 
 .inner-stage {
   position: relative;
-  margin: 22px 0 0;
+  max-width: 1480px;
+  margin: 22px auto 0;
   border: 1px solid var(--line-2);
   border-radius: 8px;
   overflow: hidden;

@@ -472,15 +472,23 @@ const App = () => {
   const [totalBets,    setTotalBets]    = useStateApp('—');
 
   useEffectApp(() => {
+    const applyMarketSummary = (s) => {
+      if (!s) return;
+      // Only "Total Predictions" comes from the summary — Markets/Open counts
+      // use the filtered list (so MKT_0000 doesn't inflate the visible numbers).
+      if (s['Total Predictions']) setTotalBets(s['Total Predictions']);
+      setLive(true);
+    };
+
     const applyMarkets = (data) => {
       if (!data || data.length === 0) return;
-      setLiveMarkets(data);
-      setTotalMarkets(String(data.length));
-      const open = data.filter(m => m.status === 'OPEN').length;
+      // Filter the legacy test market from the ticker / featured cards
+      const filtered = data.filter(m => m.id !== 0);
+      setLiveMarkets(filtered);
+      setTotalMarkets(String(filtered.length));
+      const open = filtered.filter(m => m.status === 'OPEN').length;
       setOpenMarkets(String(open));
-      const bets = data.reduce((s, m) => s + (m.yes_pool || 0) + (m.no_pool || 0), 0);
-      setTotalBets(bets >= 1000 ? (bets / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(bets));
-      const cards = data.slice(0, 4).map(m => ({
+      const cards = filtered.slice(0, 4).map(m => ({
         id:     m.id,
         cat:    m.category,
         q:      m.question,
@@ -512,8 +520,9 @@ const App = () => {
     };
 
     const run = () => {
-      window.__glMarketsPromise  && window.__glMarketsPromise.then(applyMarkets);
-      window.__glArticlesPromise && window.__glArticlesPromise.then(applyArticles);
+      window.__glMarketsPromise       && window.__glMarketsPromise.then(applyMarkets);
+      window.__glMarketSummaryPromise && window.__glMarketSummaryPromise.then(applyMarketSummary);
+      window.__glArticlesPromise      && window.__glArticlesPromise.then(applyArticles);
     };
 
     if (window.__glAPI) {
