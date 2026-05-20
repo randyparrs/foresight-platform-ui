@@ -7,13 +7,13 @@ import { studionet } from 'https://esm.sh/genlayer-js/chains';
 //   calldata = custom type-tagged ULeb128 binary
 //   data     = RLP([calldataBytes, 0])  ← hex-encoded
 //
-// Foresight Markets : 0x7F6BF01DbbC3be569a5C0f00A393E3D0dB3Aa413
-// The Signal        : 0xCb20df465C11BcB67e87b68A5B936453340c9d01
+// Foresight Markets : 0x705eF45c6dEC36dE0E8fF4c17E7e6E24CB6bB359
+// The Signal        : 0x46e821C8Ec4D329AEd82F9e4FB4D9AcEBD573F17
 // RPC               : https://studio.genlayer.com/api
 // Chain ID          : 61999
 
-const MARKETS_ADDR = '0x7F6BF01DbbC3be569a5C0f00A393E3D0dB3Aa413';
-const SIGNAL_ADDR  = '0xCb20df465C11BcB67e87b68A5B936453340c9d01';
+const MARKETS_ADDR = '0x705eF45c6dEC36dE0E8fF4c17E7e6E24CB6bB359';
+const SIGNAL_ADDR  = '0x46e821C8Ec4D329AEd82F9e4FB4D9AcEBD573F17';
 const RPC_URL      = 'https://studio.genlayer.com/api';
 const FROM_ADDR    = '0x0000000000000000000000000000000000000001';
 

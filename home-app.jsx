@@ -482,13 +482,11 @@ const App = () => {
 
     const applyMarkets = (data) => {
       if (!data || data.length === 0) return;
-      // Filter the legacy test market from the ticker / featured cards
-      const filtered = data.filter(m => m.id !== 0);
-      setLiveMarkets(filtered);
-      setTotalMarkets(String(filtered.length));
-      const open = filtered.filter(m => m.status === 'OPEN').length;
+      setLiveMarkets(data);
+      setTotalMarkets(String(data.length));
+      const open = data.filter(m => m.status === 'OPEN').length;
       setOpenMarkets(String(open));
-      const cards = filtered.slice(0, 4).map(m => ({
+      const cards = data.slice(0, 4).map(m => ({
         id:     m.id,
         cat:    m.category,
         q:      m.question,

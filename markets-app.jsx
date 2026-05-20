@@ -155,20 +155,16 @@ const MarketCard = ({ m, onRefresh }) => {
             </>
           )}
           {m.status === 'RESOLVED' && (
-            <>
-              <button onClick={() => run(() => window.__glAPI.reResolveMarket(m.id))} disabled={busy}
-                style={btnStyle('var(--vio)')}>
-                {busy ? '…' : '⚙ RE-RESOLVE'}
-              </button>
-              <button onClick={() => run(() => window.__glAPI.claimWinnings(m.id))} disabled={busy}
-                style={btnStyle('var(--yes)')}>
-                {busy ? '…' : '💰 CLAIM WIN'}
-              </button>
-              <button onClick={() => run(() => window.__glAPI.claimRefund(m.id))} disabled={busy}
-                style={btnStyle('var(--acc)')}>
-                {busy ? '…' : '↩ CLAIM REFUND'}
-              </button>
-            </>
+            <button onClick={() => run(() => window.__glAPI.claimWinnings(m.id))} disabled={busy}
+              style={btnStyle('var(--yes)')}>
+              {busy ? '…' : '💰 CLAIM WIN'}
+            </button>
+          )}
+          {m.status === 'DISPUTED' && (
+            <button onClick={() => run(() => window.__glAPI.reResolveMarket(m.id))} disabled={busy}
+              style={btnStyle('var(--vio)')}>
+              {busy ? '…' : '⚙ RE-RESOLVE'}
+            </button>
           )}
           {m.status === 'EXPIRED' && (
             <button onClick={() => run(() => window.__glAPI.claimRefund(m.id))} disabled={busy}
@@ -214,8 +210,7 @@ const App = () => {
     if (!window.__glAPI) return;
     window.__glAPI.loadMarkets().then(data => {
       if (data && data.length > 0) {
-        const filtered = data.filter(m => m.id !== 0);
-        setMarkets(filtered);
+        setMarkets(data);
         setLive(true);
       }
     }).catch(console.error);
@@ -224,9 +219,7 @@ const App = () => {
   useEffect(() => {
     const applyMarkets = (data) => {
       if (data && data.length > 0) {
-        // Hide the legacy test market (MKT_0000) created at contract deployment
-        const filtered = data.filter(m => m.id !== 0);
-        setMarkets(filtered);
+        setMarkets(data);
         setLive(true);
       }
       setLoading(false);

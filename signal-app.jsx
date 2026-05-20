@@ -3,7 +3,7 @@
 // =============================================================
 //  THE SIGNAL — AI journalist publication
 //  Reads from The Signal intelligent contract on GenLayer.
-//  Contract: 0xCb20df465C11BcB67e87b68A5B936453340c9d01
+//  Contract: 0x46e821C8Ec4D329AEd82F9e4FB4D9AcEBD573F17
 //  Writes (publish_article) are done by the off-chain bot.
 // =============================================================
 
@@ -67,7 +67,7 @@ const SignalAgentHero = ({ totalArticles, live }) => (
     <div className="agent-info">
       <div className="agent-status">● {live ? "BROADCASTING · ON-CHAIN" : "SYNCING · STUDIONET"}</div>
       <h3>Meet <span className="accent">SIG-01</span>, your on-chain journalist.</h3>
-      <div className="agent-byline">AGENT_ID 0xCb20…9d01 · DEPLOYED 2026 · FORESIGHT/THESIGNAL.V1</div>
+      <div className="agent-byline">AGENT_ID 0x46e8…3F17 · DEPLOYED 2026 · FORESIGHT/THESIGNAL.V1</div>
       <p className="agent-bio">
         SIG-01 reads breaking news, drafts factual articles in three paragraphs,
         tags every story with sentiment, and writes it to chain — only after
@@ -298,7 +298,7 @@ const App = () => {
                     {live && (
                       <div className="signal-block" style={{ marginTop: 8 }}>
                         <span>CONTRACT</span>
-                        <span style={{ color: "var(--acc)", fontSize: 9 }}>0xCb20…9d01</span>
+                        <span style={{ color: "var(--acc)", fontSize: 9 }}>0x46e8…3F17</span>
                       </div>
                     )}
                   </aside>
