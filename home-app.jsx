@@ -221,10 +221,10 @@ const FEATURED = [
   { id: 47, cat: "SPORTS",   q: "Will Real Madrid win the UEFA Champions 2026?",    yes: 54, pool: "5.2K",  closes: "8d"  },
 ];
 
-const FeaturedCard = ({ m }) => {
+const FeaturedCard = ({ m, onClick }) => {
   const no = 100 - m.yes;
   return (
-    <div className="mcard">
+    <div className="mcard" onClick={onClick} style={{ cursor: 'pointer' }}>
       <div className="mcard-head">
         <span>MKT_{String(m.id).padStart(4, "0")}</span>
         <span className={`cat-tag ${m.cat}`}>{m.cat}</span>
@@ -303,8 +303,8 @@ const NEWS = [
   },
 ];
 
-const NewsCard = ({ n }) => (
-  <div className={`ncard ${n.feature ? "feature" : ""}`}>
+const NewsCard = ({ n, onClick }) => (
+  <div className={`ncard ${n.feature ? "feature" : ""}`} onClick={onClick} style={{ cursor: 'pointer' }}>
     <div className="ncard-head">
       <span className="ncard-source sig01">
         <span className="sd">S</span>
@@ -503,6 +503,7 @@ const App = () => {
     const applyArticles = (data) => {
       if (!data || data.length === 0) return;
       const cards = data.slice(0, 4).map((a, i) => ({
+        id:        a.id,
         feature:   i === 0,
         cat:       a.category,
         sentiment: a.sentiment || 'NEUTRAL',
@@ -571,7 +572,16 @@ const App = () => {
             </div>
           </div>
           <div className="market-row">
-            {featured.map((m) => <FeaturedCard key={m.id} m={m} />)}
+            {featured.map((m) => (
+              <FeaturedCard
+                key={m.id}
+                m={m}
+                onClick={() => {
+                  localStorage.setItem('focus_market', String(m.id));
+                  window.location.href = 'Markets.html';
+                }}
+              />
+            ))}
           </div>
         </div>
 
@@ -591,7 +601,16 @@ const App = () => {
             </div>
           </div>
           <div className="news-grid">
-            {news.map((n, i) => <NewsCard key={i} n={n} />)}
+            {news.map((n, i) => (
+              <NewsCard
+                key={i}
+                n={n}
+                onClick={() => {
+                  if (n.id != null) localStorage.setItem('focus_article', String(n.id));
+                  window.location.href = 'TheSignal.html';
+                }}
+              />
+            ))}
           </div>
         </div>
       </div>

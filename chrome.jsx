@@ -23,7 +23,193 @@ const NAV_ITEMS = [
   { id: "docs",    label: "DOCS",         href: "Docs.html" },
 ];
 
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
+
+// ── NotificationBell ─────────────────────────────────────────────────────────
+const BellIcon = ({ active }) => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"
+      fill={active ? 'var(--cyan)' : 'var(--ink-3)'}
+    />
+  </svg>
+);
+
+const NotificationBell = ({ account }) => {
+  const [open,   setOpen]   = useState(false);
+  const [notifs, setNotifs] = useState([]);
+  const [seen,   setSeen]   = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('gl_seen_notifs') || '[]')); }
+    catch { return new Set(); }
+  });
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    if (!account || !window.__glAPI) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [raw, markets] = await Promise.all([
+          window.__glAPI.loadMyPredictions(account),
+          window.__glAPI.loadMarkets().catch(() => []),
+        ]);
+        if (cancelled) return;
+        const parsed = window.__glAPI.parseMyPredictions(raw) || [];
+        const list = [];
+        for (const p of parsed) {
+          const m = (markets || []).find(mm => mm.id === p.marketId);
+          if (!m) continue;
+          const status = m.status || p.status;
+          const result = m.result || p.result;
+          if (status === 'RESOLVED' && result) {
+            const won = p.side === result;
+            list.push({
+              id:       `${p.marketId}_${p.side}_${won ? 'win' : 'loss'}`,
+              type:     won ? 'WIN' : 'LOSS',
+              marketId: p.marketId,
+              question: m.question,
+              side:     p.side,
+              result,
+            });
+          } else if (status === 'EXPIRED') {
+            list.push({
+              id:       `${p.marketId}_expired`,
+              type:     'REFUND',
+              marketId: p.marketId,
+              question: m.question,
+            });
+          }
+        }
+        setNotifs(list);
+      } catch (_) { /* silent */ }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [account]);
+
+  const unread = notifs.filter(n => !seen.has(n.id)).length;
+
+  const toggleOpen = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && unread > 0) {
+      const allIds = notifs.map(n => n.id);
+      setSeen(new Set(allIds));
+      localStorage.setItem('gl_seen_notifs', JSON.stringify(allIds));
+    }
+  };
+
+  const typeProps = (type) => ({
+    WIN:    { color: 'var(--yes)',  icon: '✓', bg: 'rgba(76,232,110,0.07)',  border: 'rgba(76,232,110,0.3)' },
+    LOSS:   { color: 'var(--bear)', icon: '✕', bg: 'rgba(255,80,80,0.07)',   border: 'rgba(255,80,80,0.3)' },
+    REFUND: { color: 'var(--acc)',  icon: '↩', bg: 'rgba(234,179,68,0.07)',  border: 'rgba(234,179,68,0.3)' },
+  }[type] || { color: 'var(--ink-3)', icon: '·', bg: 'transparent', border: 'var(--line-2)' });
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={toggleOpen}
+        aria-label="Notifications"
+        style={{
+          background: open ? 'rgba(76,232,230,0.06)' : 'transparent',
+          border: `1px solid ${open ? 'var(--cyan)' : 'var(--line-2)'}`,
+          borderRadius: 4, padding: '6px 8px', cursor: 'pointer',
+          position: 'relative', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', transition: 'border-color 0.15s',
+        }}
+      >
+        <BellIcon active={unread > 0 || open} />
+        {unread > 0 && (
+          <span style={{
+            position: 'absolute', top: -5, right: -5,
+            background: 'var(--yes)', color: '#000',
+            borderRadius: '50%', width: 15, height: 15,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 8, fontWeight: 700, lineHeight: 1,
+          }}>
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setOpen(false)} />
+          <div ref={panelRef} style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+            width: 300, background: 'var(--bg, #060e1a)',
+            border: '1px solid var(--line-2)', borderRadius: 4,
+            zIndex: 200, boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{
+              padding: '9px 14px', borderBottom: '1px solid var(--line-2)',
+              fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.14em',
+              color: 'var(--ink-3)', display: 'flex', justifyContent: 'space-between',
+            }}>
+              <span>// NOTIFICATIONS</span>
+              <span>{notifs.length} TOTAL</span>
+            </div>
+            <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+              {notifs.length === 0 ? (
+                <div style={{
+                  padding: '22px 14px', textAlign: 'center',
+                  fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                  color: 'var(--ink-3)', letterSpacing: '0.12em',
+                }}>
+                  // NO EVENTS YET
+                </div>
+              ) : notifs.map(n => {
+                const s = typeProps(n.type);
+                return (
+                  <div key={n.id} style={{
+                    padding: '10px 14px', borderBottom: '1px solid var(--line-2)',
+                    background: s.bg, borderLeft: `2px solid ${s.border}`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <span style={{
+                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                        fontWeight: 700, color: s.color, letterSpacing: '0.1em',
+                      }}>
+                        {s.icon} {n.type}
+                      </span>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--ink-3)' }}>
+                        MKT_{String(n.marketId).padStart(4, '0')}
+                      </span>
+                      {n.side && (
+                        <span style={{
+                          marginLeft: 'auto', fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                          fontWeight: 700, color: n.side === 'YES' ? 'var(--yes)' : 'var(--bear)',
+                        }}>
+                          {n.side}
+                        </span>
+                      )}
+                    </div>
+                    {n.question && (
+                      <div style={{
+                        fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                        color: 'var(--ink-2)', lineHeight: 1.45,
+                      }}>
+                        {n.question.length > 72 ? n.question.slice(0, 72) + '…' : n.question}
+                      </div>
+                    )}
+                    {n.result && (
+                      <div style={{
+                        marginTop: 4, fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 9, color: 'var(--ink-3)',
+                      }}>
+                        RESULT: <b style={{ color: 'var(--acc)' }}>{n.result}</b>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 // ── ProfilePanel ──────────────────────────────────────────────────────────────
 const ProfilePanel = ({ account, onClose, onDisconnect }) => {
@@ -306,6 +492,8 @@ const Topbar = ({ active = "home" }) => {
             {error}
           </span>
         )}
+
+        {account && <NotificationBell account={account} />}
 
         {account ? (
           <button

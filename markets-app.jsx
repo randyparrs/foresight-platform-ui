@@ -4,7 +4,7 @@
 const MARKETS_MOCK = [];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef } = React;
 
 const fmtPool = (n) =>
   n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n || 0);
@@ -66,7 +66,7 @@ const MarketCard = ({ m, onRefresh }) => {
     run(() => window.__glAPI.placePrediction(m.id, side));
 
   return (
-    <div className="mcard">
+    <div className="mcard" data-market-id={m.id}>
       {/* Header */}
       <div className="mcard-head">
         <span>MKT_{String(m.id).padStart(4, '0')}</span>
@@ -199,12 +199,21 @@ const btnStyle = (color) => ({
   letterSpacing: '0.06em',
 });
 
+const CATEGORIES = ['ALL', 'CRYPTO', 'TECH', 'POLITICS', 'SPORTS', 'OTHER'];
+
 // ── App ───────────────────────────────────────────────────────────────────────
 const App = () => {
-  const [markets, setMarkets] = useState([]);
-  const [summary, setSummary] = useState({ open: 0, total: 0 });
-  const [live,    setLive]    = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [markets,        setMarkets]        = useState([]);
+  const [summary,        setSummary]        = useState({ open: 0, total: 0 });
+  const [live,           setLive]           = useState(false);
+  const [loading,        setLoading]        = useState(true);
+  const [activeCategory, setActiveCategory] = useState('ALL');
+  const focusIdRef = useRef(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('focus_market');
+    if (saved) { focusIdRef.current = saved; localStorage.removeItem('focus_market'); }
+  }, []);
 
   const fetchMarkets = useCallback(() => {
     if (!window.__glAPI) return;
@@ -251,6 +260,24 @@ const App = () => {
     return () => document.removeEventListener('glReady', run);
   }, []);
 
+  // Scroll to and highlight a market coming from the Home page
+  useEffect(() => {
+    if (!focusIdRef.current || markets.length === 0) return;
+    const id = focusIdRef.current;
+    setTimeout(() => {
+      const el = document.querySelector(`[data-market-id="${id}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.outline = '1px solid var(--cyan)';
+        setTimeout(() => { el.style.outline = ''; }, 2000);
+      }
+    }, 600);
+  }, [markets]);
+
+  const filteredMarkets = activeCategory === 'ALL'
+    ? markets
+    : markets.filter(m => m.category === activeCategory);
+
   return (
     <div className="page" style={{ paddingBottom: 32 }}>
       <Topbar active="markets" />
@@ -276,12 +303,16 @@ const App = () => {
 
           <div className="filter-row">
             <div className="chips">
-              <span className="fchip on">ALL</span>
-              <span className="fchip crypto on">CRYPTO</span>
-              <span className="fchip tech on">TECH</span>
-              <span className="fchip politics on">POLITICS</span>
-              <span className="fchip sports on">SPORTS</span>
-              <span className="fchip">OTHER</span>
+              {CATEGORIES.map(cat => (
+                <span
+                  key={cat}
+                  className={`fchip${cat !== 'ALL' ? ` ${cat.toLowerCase()}` : ''} ${activeCategory === cat ? 'on' : ''}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setActiveCategory(cat)}
+                >
+                  {cat}
+                </span>
+              ))}
             </div>
             <div className="chips">
               <span className="fchip">SORT · POOL ↓</span>
@@ -298,15 +329,21 @@ const App = () => {
             </div>
           )}
 
+          {!loading && filteredMarkets.length === 0 && markets.length > 0 && (
+            <div style={{ padding: '24px 0', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.15em' }}>
+              // NO MARKETS IN CATEGORY: {activeCategory}
+            </div>
+          )}
+
           <div className="market-grid">
-            {markets.map((m) => (
+            {filteredMarkets.map((m) => (
               <MarketCard key={m.id} m={m} onRefresh={fetchMarkets} />
             ))}
           </div>
 
           {live && (
             <div style={{ marginTop: 16, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.15em' }}>
-              // DATA FROM GENLAYER · CONTRACT 0x7F6B…A413
+              // DATA FROM GENLAYER · CONTRACT 0x705e…B359
             </div>
           )}
         </div>

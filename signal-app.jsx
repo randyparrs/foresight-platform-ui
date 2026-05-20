@@ -7,7 +7,7 @@
 //  Writes (publish_article) are done by the off-chain bot.
 // =============================================================
 
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useMemo } = React;
 
 // ── Avatar / agent hero ───────────────────────────────────────────────────────
 const SignalAgentAvatar = () => (
@@ -136,13 +136,16 @@ const ArticleCard = ({ a, onSelect }) => (
 );
 
 // ── App ───────────────────────────────────────────────────────────────────────
+const SIG_CATEGORIES = ['ALL', 'CRYPTO', 'MARKETS', 'TECH', 'POLITICS', 'SPORTS', 'OTHER'];
+
 const App = () => {
-  const [articles, setArticles]     = useState([]);
-  const [activeIdx, setActiveIdx]   = useState(0);
-  const [summary, setSummary]       = useState({ crypto: 0, markets: 0, tech: 0, politics: 0, sports: 0, other: 0 });
-  const [totalArticles, setTotal]   = useState('—');
-  const [live, setLive]             = useState(false);
-  const [loading, setLoading]       = useState(true);
+  const [articles,       setArticles]     = useState([]);
+  const [activeIdx,      setActiveIdx]    = useState(0);
+  const [activeCategory, setActiveCategory] = useState('ALL');
+  const [summary,        setSummary]      = useState({ crypto: 0, markets: 0, tech: 0, politics: 0, sports: 0, other: 0 });
+  const [totalArticles,  setTotal]        = useState('—');
+  const [live,           setLive]         = useState(false);
+  const [loading,        setLoading]      = useState(true);
 
   useEffect(() => {
     const applyArticles = (data) => {
@@ -191,14 +194,44 @@ const App = () => {
     return () => document.removeEventListener('glReady', run);
   }, []);
 
-  const feature = articles[activeIdx] || null;
-  const others  = articles.filter((_, i) => i !== activeIdx);
+  // Navigate to a specific article coming from the Home page
+  useEffect(() => {
+    const focusId = localStorage.getItem('focus_article');
+    if (focusId && articles.length > 0) {
+      localStorage.removeItem('focus_article');
+      setActiveCategory('ALL');
+      const idx = articles.findIndex(a => String(a.id) === String(focusId));
+      if (idx >= 0) setActiveIdx(idx);
+    }
+  }, [articles]);
+
+  const filteredArticles = useMemo(() =>
+    activeCategory === 'ALL' ? articles : articles.filter(a => a.category === activeCategory),
+    [articles, activeCategory]
+  );
+
+  // Auto-rotate the featured article every 8 seconds
+  useEffect(() => {
+    if (filteredArticles.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveIdx(prev => (prev + 1) % filteredArticles.length);
+    }, 8000);
+    return () => clearInterval(timer);
+  }, [filteredArticles.length, activeCategory]);
+
+  const handleCategoryChange = (cat) => {
+    setActiveCategory(cat);
+    setActiveIdx(0);
+  };
+
+  const feature = filteredArticles[activeIdx] || null;
+  const others  = filteredArticles.filter((_, i) => i !== activeIdx);
   const feed    = others.slice(0, 6).map(a => ({
     block: a.block, category: a.category, title: a.title,
   }));
 
   const selectArticle = (id) => {
-    const idx = articles.findIndex(a => a.id === id);
+    const idx = filteredArticles.findIndex(a => a.id === id);
     if (idx >= 0) {
       setActiveIdx(idx);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -231,13 +264,16 @@ const App = () => {
 
           <div className="signal-meta-row">
             <div className="signal-cat-row">
-              <span className="signal-cat-chip ALL on">ALL</span>
-              <span className="signal-cat-chip CRYPTO on">CRYPTO</span>
-              <span className="signal-cat-chip MARKETS on">MARKETS</span>
-              <span className="signal-cat-chip TECH on">TECH</span>
-              <span className="signal-cat-chip POLITICS on">POLITICS</span>
-              <span className="signal-cat-chip SPORTS on">SPORTS</span>
-              <span className="signal-cat-chip OTHER">OTHER</span>
+              {SIG_CATEGORIES.map(cat => (
+                <span
+                  key={cat}
+                  className={`signal-cat-chip ${cat} ${activeCategory === cat ? 'on' : ''}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleCategoryChange(cat)}
+                >
+                  {cat}
+                </span>
+              ))}
             </div>
             <div className="signal-summary">
               <span>CRYPTO <b>{summary.crypto}</b></span>
@@ -255,9 +291,15 @@ const App = () => {
             </div>
           )}
 
-          {!loading && !feature && (
+          {!loading && !feature && articles.length === 0 && (
             <div style={{ padding: "32px 0", color: "var(--ink-3)", fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: "0.15em" }}>
               // NO ARTICLES PUBLISHED YET
+            </div>
+          )}
+
+          {!loading && !feature && articles.length > 0 && (
+            <div style={{ padding: "32px 0", color: "var(--ink-3)", fontFamily: "JetBrains Mono, monospace", fontSize: 11, letterSpacing: "0.15em" }}>
+              // NO ARTICLES IN CATEGORY: {activeCategory}
             </div>
           )}
 
