@@ -1,4 +1,4 @@
-# Foresight — Frontend
+# Foresight  Frontend
 
 Frontend for the Foresight prediction market platform. Built with vanilla React and deployed on Netlify.
 
