@@ -27,7 +27,7 @@ const PodiumCard = ({ rank, p, isYou }) => (
     <div className="rank">{String(rank).padStart(2, '0')}</div>
     <div style={{ flex: 1, minWidth: 0 }}>
       <div className="name">{isYou ? 'YOU' : short(p.address)}</div>
-      <div className="addr">{p.address}</div>
+      <div className="addr" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{short(p.address)}</div>
       <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <span className="badge" style={{
           fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '0.18em',
@@ -61,7 +61,7 @@ const TableRow = ({ rank, p, isYou }) => (
     <span className="rank">{String(rank).padStart(2, '0')}</span>
     <span>
       <div className="name">{isYou ? 'YOU' : short(p.address)}</div>
-      <div className="addr">{p.address}</div>
+      <div className="addr">{short(p.address)}</div>
     </span>
     <span className="wr" style={{ color: p.pts >= 0 ? 'var(--yes)' : 'var(--bear)', fontWeight: 600 }}>
       {fmtNet(p.pts)}
@@ -85,38 +85,41 @@ const TableRow = ({ rank, p, isYou }) => (
 // ── Your position card ────────────────────────────────────────────────────────
 const YourPositionCard = ({ p, rank }) => (
   <div style={{
-    marginBottom: 24, padding: '14px 20px', borderRadius: 4,
+    marginBottom: 24, padding: '20px 28px', borderRadius: 4,
     background: 'rgba(76,232,230,0.04)', border: '1px solid rgba(76,232,230,0.22)',
-    display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    gap: 16, flexWrap: 'wrap',
   }}>
-    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--cyan)', letterSpacing: '0.15em' }}>
-      YOUR POSITION
+    <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, color: 'var(--cyan)', letterSpacing: '0.15em' }}>
+        YOUR POSITION
+      </div>
+      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 32, fontWeight: 700, color: 'var(--ink-1)', lineHeight: 1 }}>
+        #{rank}
+      </div>
     </div>
-    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 22, fontWeight: 700, color: 'var(--ink-1)' }}>
-      #{rank}
-    </div>
-    <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-      <div>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: 'var(--ink-3)', letterSpacing: '0.1em', marginBottom: 2 }}>NET P&amp;L</div>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: p.pts >= 0 ? 'var(--yes)' : 'var(--bear)' }}>
+    <div style={{ display: 'flex', gap: 36, flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: 'var(--ink-3)', letterSpacing: '0.12em', marginBottom: 5 }}>NET P&amp;L</div>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700, color: p.pts >= 0 ? 'var(--yes)' : 'var(--bear)' }}>
           {fmtNet(p.pts)}
-        </span>
+        </div>
       </div>
-      <div>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: 'var(--ink-3)', letterSpacing: '0.1em', marginBottom: 2 }}>RECORD</div>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>
-          <span style={{ color: 'var(--yes)', fontWeight: 700 }}>{p.wins}W</span>
-          <span style={{ color: 'var(--ink-3)', margin: '0 4px' }}>/</span>
-          <span style={{ color: 'var(--bear)', fontWeight: 700 }}>{p.losses}L</span>
-        </span>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: 'var(--ink-3)', letterSpacing: '0.12em', marginBottom: 5 }}>RECORD</div>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700 }}>
+          <span style={{ color: 'var(--yes)' }}>{p.wins}W</span>
+          <span style={{ color: 'var(--ink-3)', margin: '0 6px', fontWeight: 400 }}>/</span>
+          <span style={{ color: 'var(--bear)' }}>{p.losses}L</span>
+        </div>
       </div>
-      <div>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: 'var(--ink-3)', letterSpacing: '0.1em', marginBottom: 2 }}>WIN RATE</div>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700 }}>{p.winRate}%</span>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: 'var(--ink-3)', letterSpacing: '0.12em', marginBottom: 5 }}>WIN RATE</div>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700 }}>{p.winRate}%</div>
       </div>
-      <div>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: 'var(--ink-3)', letterSpacing: '0.1em', marginBottom: 2 }}>TOTAL BETS</div>
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700 }}>{p.totalBets}</span>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 8, color: 'var(--ink-3)', letterSpacing: '0.12em', marginBottom: 5 }}>TOTAL BETS</div>
+        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700 }}>{p.totalBets}</div>
       </div>
     </div>
   </div>
@@ -124,7 +127,7 @@ const YourPositionCard = ({ p, rank }) => (
 
 // ── App ───────────────────────────────────────────────────────────────────────
 const App = () => {
-  const [stats,   setStats]   = useLBState({ totalMarkets: '—', openMarkets: '—', totalArticles: '—', totalPredictions: '—' });
+  const [stats,   setStats]   = useLBState({ totalMarkets: '—', openMarkets: '—', totalPredictions: '—' });
   const [ranking, setRanking] = useLBState(null);
   const [loading, setLoading] = useLBState(true);
 
@@ -138,10 +141,6 @@ const App = () => {
           openMarkets:      s['Open']              || '—',
           totalPredictions: s['Total Predictions'] || '—',
         }));
-      });
-      window.__glSignalSummaryPromise && window.__glSignalSummaryPromise.then(s => {
-        if (!s) return;
-        setStats(prev => ({ ...prev, totalArticles: s['Total Articles'] || '—' }));
       });
 
       try {
@@ -194,10 +193,6 @@ const App = () => {
                 <div>
                   <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 22, fontWeight: 700, color: 'var(--acc)' }}>{stats.openMarkets}</div>
                   <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>OPEN</div>
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 22, fontWeight: 700, color: 'var(--vio)' }}>{stats.totalArticles}</div>
-                  <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 10, color: 'var(--ink-3)', letterSpacing: '0.1em' }}>ARTICLES</div>
                 </div>
                 <div>
                   <div style={{ fontFamily: 'JetBrains Mono,monospace', fontSize: 22, fontWeight: 700, color: 'var(--cyan)' }}>{stats.totalPredictions}</div>
