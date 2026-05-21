@@ -198,41 +198,18 @@ function glDecodeResult(hexData) {
   }
 }
 
-// ── JSON-RPC call ─────────────────────────────────────────────────────────────
+// ── Read-only client (no wallet needed) ──────────────────────────────────────
+const _glReadClient = createClient({ chain: testnetBradbury });
+
+// ── Contract read via genlayer-js readContract ────────────────────────────────
 async function glCall(address, method, args = [], timeoutMs = 15000) {
-  const data = buildCalldata(method, args);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(RPC_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: Date.now(),
-        method: 'gen_call',
-        params: [{
-          type: 'read',
-          from: FROM_ADDR,
-          to:   address,
-          data,
-        }]
-      })
-    });
-    clearTimeout(timer);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
-    const resultData = typeof json.result === 'string' ? json.result : json.result?.data;
-    const decoded = glDecodeResult(resultData);
-    console.log(`[GL] ${method}(${args.join(',')}) →`, String(decoded).slice(0, 100));
-    return decoded;
-  } catch (e) {
-    clearTimeout(timer);
-    if (e.name === 'AbortError') throw new Error(`timeout after ${timeoutMs}ms: ${method}`);
-    throw e;
-  }
+  const timeoutP = new Promise((_, rej) =>
+    setTimeout(() => rej(new Error(`timeout after ${timeoutMs}ms: ${method}`)), timeoutMs)
+  );
+  const callP = _glReadClient.readContract({ address, functionName: method, args });
+  const result = await Promise.race([callP, timeoutP]);
+  console.log(`[GL] ${method}(${args.join(',')}) →`, String(result).slice(0, 120));
+  return result;
 }
 
 // ── Field extractor ───────────────────────────────────────────────────────────
