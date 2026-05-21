@@ -463,8 +463,10 @@ const { useState: useStateApp, useEffect: useEffectApp } = React;
 
 const App = () => {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [featured,     setFeatured]     = useStateApp(FEATURED);
-  const [news,         setNews]         = useStateApp(NEWS);
+  const [featured,     setFeatured]     = useStateApp([]);
+  const [news,         setNews]         = useStateApp([]);
+  const [loadingMkts,  setLoadingMkts]  = useStateApp(true);
+  const [loadingNews,  setLoadingNews]  = useStateApp(true);
   const [live,         setLive]         = useStateApp(false);
   const [liveMarkets,  setLiveMarkets]  = useStateApp(null);
   const [totalMarkets, setTotalMarkets] = useStateApp('—');
@@ -481,6 +483,7 @@ const App = () => {
     };
 
     const applyMarkets = (data) => {
+      setLoadingMkts(false);
       if (!data || data.length === 0) return;
       setLiveMarkets(data);
       setTotalMarkets(String(data.length));
@@ -501,6 +504,7 @@ const App = () => {
     };
 
     const applyArticles = (data) => {
+      setLoadingNews(false);
       if (!data || data.length === 0) return;
       const cards = data.slice(0, 4).map((a, i) => ({
         id:        a.id,
@@ -572,7 +576,15 @@ const App = () => {
             </div>
           </div>
           <div className="market-row">
-            {featured.map((m) => (
+            {loadingMkts ? (
+              <div style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', padding: '32px 0' }}>
+                // SYNCING ON-CHAIN MARKETS…
+              </div>
+            ) : featured.length === 0 ? (
+              <div style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', padding: '32px 0' }}>
+                // NO MARKETS YET
+              </div>
+            ) : featured.map((m) => (
               <FeaturedCard
                 key={m.id}
                 m={m}
@@ -601,7 +613,15 @@ const App = () => {
             </div>
           </div>
           <div className="news-grid">
-            {news.map((n, i) => (
+            {loadingNews ? (
+              <div style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', padding: '32px 0' }}>
+                // SYNCING SIGNAL ARTICLES…
+              </div>
+            ) : news.length === 0 ? (
+              <div style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '0.18em', padding: '32px 0' }}>
+                // NO ARTICLES YET
+              </div>
+            ) : news.map((n, i) => (
               <NewsCard
                 key={i}
                 n={n}
