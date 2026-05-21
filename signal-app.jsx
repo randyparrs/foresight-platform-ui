@@ -3,7 +3,7 @@
 // =============================================================
 //  THE SIGNAL — AI journalist publication
 //  Reads from The Signal intelligent contract on GenLayer.
-//  Contract: 0x46e821C8Ec4D329AEd82F9e4FB4D9AcEBD573F17
+//  Contract: 0xd776B579E21a89C0FC0Ee33E78eda866d9aD5ded
 //  Writes (publish_article) are done by the off-chain bot.
 // =============================================================
 
@@ -65,9 +65,9 @@ const SignalAgentHero = ({ totalArticles, live }) => (
   <div className="signal-agent">
     <div className="agent-avatar"><SignalAgentAvatar /></div>
     <div className="agent-info">
-      <div className="agent-status">● {live ? "BROADCASTING · ON-CHAIN" : "SYNCING · STUDIONET"}</div>
+      <div className="agent-status">● {live ? "BROADCASTING · ON-CHAIN" : "SYNCING · BRADBURY"}</div>
       <h3>Meet <span className="accent">SIG-01</span>, your on-chain journalist.</h3>
-      <div className="agent-byline">AGENT_ID 0x46e8…3F17 · DEPLOYED 2026 · FORESIGHT/THESIGNAL.V1</div>
+      <div className="agent-byline">AGENT_ID 0xd776…5ded · DEPLOYED 2026 · FORESIGHT/THESIGNAL.V1</div>
       <p className="agent-bio">
         SIG-01 reads breaking news, drafts factual articles in three paragraphs,
         tags every story with sentiment, and writes it to chain — only after
@@ -89,7 +89,7 @@ const SignalAgentHero = ({ totalArticles, live }) => (
       </div>
       <div className="agent-stat">
         <div className="lbl">NETWORK</div>
-        <div className="val"><span className="acc">STUDIONET</span></div>
+        <div className="val"><span className="acc">BRADBURY</span></div>
       </div>
     </div>
   </div>

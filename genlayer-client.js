@@ -1,20 +1,20 @@
 // Foresight Platform — GenLayer Contract Client v4
 import { createClient } from 'https://esm.sh/genlayer-js';
-import { studionet } from 'https://esm.sh/genlayer-js/chains';
+import { testnetBradbury } from 'https://esm.sh/genlayer-js/chains';
 // Proper binary calldata encoding for gen_call JSON-RPC
 //
 // Encoding format (from genlayer-js source):
 //   calldata = custom type-tagged ULeb128 binary
 //   data     = RLP([calldataBytes, 0])  ← hex-encoded
 //
-// Foresight Markets : 0x705eF45c6dEC36dE0E8fF4c17E7e6E24CB6bB359
-// The Signal        : 0x46e821C8Ec4D329AEd82F9e4FB4D9AcEBD573F17
-// RPC               : https://studio.genlayer.com/api
-// Chain ID          : 61999
+// Foresight Markets : 0x43b38042d43dffD570bD561Ac46294785f7E202B
+// The Signal        : 0xd776B579E21a89C0FC0Ee33E78eda866d9aD5ded
+// RPC               : https://rpc-bradbury.genlayer.com
+// Chain ID          : 4221
 
-const MARKETS_ADDR = '0x705eF45c6dEC36dE0E8fF4c17E7e6E24CB6bB359';
-const SIGNAL_ADDR  = '0x46e821C8Ec4D329AEd82F9e4FB4D9AcEBD573F17';
-const RPC_URL      = 'https://studio.genlayer.com/api';
+const MARKETS_ADDR = '0x43b38042d43dffD570bD561Ac46294785f7E202B';
+const SIGNAL_ADDR  = '0xd776B579E21a89C0FC0Ee33E78eda866d9aD5ded';
+const RPC_URL      = 'https://rpc-bradbury.genlayer.com';
 const FROM_ADDR    = '0x0000000000000000000000000000000000000001';
 
 // ── Calldata type constants ───────────────────────────────────────────────────
@@ -434,7 +434,7 @@ function _sdkClient() {
   if (!account) throw new Error('Conecta tu wallet primero.');
   if (!window.ethereum) throw new Error('No se detectó wallet.');
   return createClient({
-    chain: studionet,
+    chain: testnetBradbury,
     account,
     transport: { custom: window.ethereum },
   });
@@ -483,7 +483,7 @@ function publishArticle(category, url1, url2, url3) {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-console.log('[GL] Connecting to GenLayer Studio at', RPC_URL);
+console.log('[GL] Connecting to GenLayer Bradbury Testnet at', RPC_URL);
 
 window.__glMarketsPromise       = loadMarkets().catch(e       => { console.error('[GL] Markets error:', e);     return null; });
 window.__glMarketSummaryPromise = loadMarketSummary().catch(e => { console.error('[GL] MktSumm error:', e);     return null; });

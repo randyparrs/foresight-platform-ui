@@ -19,7 +19,7 @@ const SECTIONS = {
         <h3>1. Connect a wallet</h3>
         <p>
           Any GenLayer-compatible wallet works. Make sure you're on{" "}
-          <code>testnet_studio</code> while we're in beta. The connect button is
+          <code>Genlayer Bradbury Testnet</code> while we're in beta. The connect button is
           at the top-right of every page.
         </p>
 
@@ -441,7 +441,7 @@ const SECTIONS = {
         <p>
           <code>await window.__glAPI.placePrediction("3", "YES")</code> — bets 1
           point YES on market id 3. Requires MetaMask connected to GenLayer
-          Studio.
+          Bradbury Testnet.
         </p>
 
         <h3>Generate a market (bot)</h3>
@@ -463,7 +463,7 @@ const SECTIONS = {
         </p>
         <p>
           Internal review: lint via <code>genvm-lint</code>, manual storage
-          schema verification, end-to-end smoke tests on Studio.
+          schema verification, end-to-end smoke tests on Bradbury Testnet.
         </p>
         <p>
           A formal audit will be commissioned before any mainnet deployment.

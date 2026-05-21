@@ -3,15 +3,15 @@
 // =============================================================
 //  Shared chrome — Topbar + Footer
 //  Wallet: MetaMask + Rabby (EIP-1193 via window.ethereum)
-//  Network: GenLayer Studio Testnet (chainId 61999)
+//  Network: Genlayer Bradbury Testnet (chainId 4221)
 // =============================================================
 
 const GL_NETWORK = {
-  chainId:         '0xF25F',          // 61999 in hex
-  chainName:       'GenLayer Studio',
+  chainId:         '0x107D',          // 4221 in hex
+  chainName:       'Genlayer Bradbury Testnet',
   nativeCurrency:  { name: 'GEN', symbol: 'GEN', decimals: 18 },
-  rpcUrls:         ['https://studio.genlayer.com/api'],
-  blockExplorerUrls: [],
+  rpcUrls:         ['https://rpc-bradbury.genlayer.com'],
+  blockExplorerUrls: ['https://explorer-bradbury.genlayer.com/'],
 };
 
 const NAV_ITEMS = [
@@ -484,7 +484,7 @@ const Topbar = ({ active = "home" }) => {
           <span className="dot"></span>
           <span className="net">TESTNET</span>
           <span className="sep">·</span>
-          <span>STUDIONET</span>
+          <span>BRADBURY</span>
         </div>
 
         {error && (
@@ -535,7 +535,7 @@ const FooterStrip = () => (
         resolved by optimistic AI consensus on GenLayer.
       </div>
       <div className="foot-meta">
-        <span className="acc">v0.1.0</span> · <span className="net">TESTNET STUDIO</span>
+        <span className="acc">v0.1.0</span> · <span className="net">TESTNET BRADBURY</span>
       </div>
     </div>
     <div className="foot-col">
@@ -564,7 +564,7 @@ const FooterStrip = () => (
         <a href="#" aria-label="Discord">⌬</a>
         <a href="#" aria-label="GitHub">⌥</a>
       </div>
-      <span>NON-CUSTODIAL · TESTNET STUDIO</span>
+      <span>NON-CUSTODIAL · TESTNET BRADBURY</span>
     </div>
   </div>
 );
