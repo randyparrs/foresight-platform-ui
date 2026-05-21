@@ -1,6 +1,7 @@
 // Foresight Platform — GenLayer Contract Client v4
 import { createClient } from 'https://esm.sh/genlayer-js';
 import { testnetBradbury } from 'https://esm.sh/genlayer-js/chains';
+import { http } from 'https://esm.sh/viem';
 // Proper binary calldata encoding for gen_call JSON-RPC
 //
 // Encoding format (from genlayer-js source):
@@ -199,7 +200,7 @@ function glDecodeResult(hexData) {
 }
 
 // ── Read-only client (no wallet needed) ──────────────────────────────────────
-const _glReadClient = createClient({ chain: testnetBradbury });
+const _glReadClient = createClient({ chain: testnetBradbury, transport: http(RPC_URL) });
 
 // ── Contract read via genlayer-js readContract ────────────────────────────────
 async function glCall(address, method, args = [], timeoutMs = 15000) {
