@@ -486,7 +486,7 @@ const App = () => {
       setTotalMarkets(String(data.length));
       const open = data.filter(m => m.status === 'OPEN').length;
       setOpenMarkets(String(open));
-      const cards = data.slice(0, 4).map(m => ({
+      const cards = [...data].reverse().slice(0, 4).map(m => ({
         id:     m.id,
         cat:    m.category,
         q:      m.question,
