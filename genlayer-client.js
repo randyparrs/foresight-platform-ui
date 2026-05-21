@@ -199,30 +199,40 @@ function glDecodeResult(hexData) {
 }
 
 // ── JSON-RPC call ─────────────────────────────────────────────────────────────
-async function glCall(address, method, args = []) {
+async function glCall(address, method, args = [], timeoutMs = 15000) {
   const data = buildCalldata(method, args);
-  const res = await fetch(RPC_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: Date.now(),
-      method: 'gen_call',
-      params: [{
-        type: 'read',
-        from: FROM_ADDR,
-        to:   address,
-        data,
-      }]
-    })
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
-  const resultData = typeof json.result === 'string' ? json.result : json.result?.data;
-  const decoded = glDecodeResult(resultData);
-  console.log(`[GL] ${method}(${args.join(',')}) →`, String(decoded).slice(0, 100));
-  return decoded;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(RPC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: Date.now(),
+        method: 'gen_call',
+        params: [{
+          type: 'read',
+          from: FROM_ADDR,
+          to:   address,
+          data,
+        }]
+      })
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
+    const resultData = typeof json.result === 'string' ? json.result : json.result?.data;
+    const decoded = glDecodeResult(resultData);
+    console.log(`[GL] ${method}(${args.join(',')}) →`, String(decoded).slice(0, 100));
+    return decoded;
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error(`timeout after ${timeoutMs}ms: ${method}`);
+    throw e;
+  }
 }
 
 // ── Field extractor ───────────────────────────────────────────────────────────
@@ -308,9 +318,24 @@ async function _retryCall(addr, method, args, attempts = 3, delayMs = 1500) {
 }
 
 async function loadMarkets() {
-  const countRaw = await glCall(MARKETS_ADDR, 'get_market_count', []);
-  const count = parseInt(String(countRaw)) || 0;
-  console.log('[GL] Market count:', count);
+  let count = 0;
+  // Try get_market_count first; fall back to get_summary if it returns null/0
+  try {
+    const countRaw = await glCall(MARKETS_ADDR, 'get_market_count', []);
+    count = parseInt(String(countRaw)) || 0;
+    console.log('[GL] Market count (direct):', count);
+  } catch (_) { count = 0; }
+
+  if (count === 0) {
+    try {
+      const sumRaw = await glCall(MARKETS_ADDR, 'get_summary', []);
+      const parsed = parseSummary(sumRaw);
+      const total = parseInt(parsed['Total Markets'] || '0');
+      if (total > 0) count = total;
+      console.log('[GL] Market count (summary fallback):', count);
+    } catch (_) { count = 0; }
+  }
+
   if (count === 0) return [];
   const ids = Array.from({ length: count }, (_, i) => String(i));
   // Each call retries up to 3 times with delay between attempts
@@ -326,9 +351,25 @@ async function loadMarketSummary() {
 }
 
 async function loadArticles(limit = 20) {
-  const countRaw = await glCall(SIGNAL_ADDR, 'get_article_count', []);
-  const count = parseInt(String(countRaw)) || 0;
-  console.log('[GL] Article count:', count);
+  let count = 0;
+  // Try get_article_count first; fall back to get_summary if it returns null/0
+  try {
+    const countRaw = await glCall(SIGNAL_ADDR, 'get_article_count', []);
+    count = parseInt(String(countRaw)) || 0;
+    console.log('[GL] Article count (direct):', count);
+  } catch (_) { count = 0; }
+
+  if (count === 0) {
+    // Fallback: try get_summary to extract total article count
+    try {
+      const sumRaw = await glCall(SIGNAL_ADDR, 'get_summary', []);
+      const parsed = parseSummary(sumRaw);
+      const total = parseInt(parsed['Total Articles'] || parsed['total_articles'] || '0');
+      if (total > 0) count = total;
+      console.log('[GL] Article count (summary fallback):', count);
+    } catch (_) { count = 0; }
+  }
+
   if (count === 0) return [];
   const n = Math.min(count, limit);
   const ids = Array.from({ length: n }, (_, i) => String(count - 1 - i));
